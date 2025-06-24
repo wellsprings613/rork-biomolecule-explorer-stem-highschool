@@ -1,4 +1,5 @@
 import { FileFormat } from '@/types/protein';
+import { Platform } from 'react-native';
 
 /**
  * Detects the molecular file format based on file content
