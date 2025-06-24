@@ -544,17 +544,33 @@ export const parseProteinFile = async (fileContent: string, fileName: string): P
     }
     
     // Parse based on detected format
-    switch (detectedFormat) {
-      case 'pdb':
-        return parsePDB(fileContent);
-      case 'cif':
-        return parseCIF(fileContent);
-      case 'mol':
-        return parseMOL(fileContent);
-      case 'mol2':
-        return parseMOL2(fileContent);
-      default:
-        throw new Error(`Unsupported file format: ${detectedFormat}`);
+    try {
+      switch (detectedFormat) {
+        case 'pdb':
+          return parsePDB(fileContent);
+        case 'cif':
+          return parseCIF(fileContent);
+        case 'mol':
+          return parseMOL(fileContent);
+        case 'mol2':
+          return parseMOL2(fileContent);
+        default:
+          throw new Error(`Unsupported file format: ${detectedFormat}`);
+      }
+    } catch (parsingError) {
+      console.error(`Error parsing ${detectedFormat} file:`, parsingError);
+      
+      // Create a minimal fallback structure with the raw content
+      // This ensures the viewer can still try to render something
+      return {
+        id: Date.now().toString(),
+        name: fileName || `Unreadable ${detectedFormat.toUpperCase()} File`,
+        description: `This file could not be fully parsed, but the viewer will attempt to render it directly.`,
+        chains: [],
+        atoms: [],
+        fileFormat: detectedFormat,
+        rawContent: fileContent
+      };
     }
   } catch (error) {
     console.error('Error parsing protein file:', error);

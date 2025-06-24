@@ -60,6 +60,8 @@ const nglViewerHTML = `
       -webkit-user-select: none;
       user-select: none;
       padding-bottom: env(safe-area-inset-bottom);
+      position: relative;
+      z-index: 0;
     }
     #viewport { 
       width: 100%; 
@@ -68,6 +70,9 @@ const nglViewerHTML = `
       top: 0;
       left: 0;
       z-index: 5;
+    }
+    canvas {
+      touch-action: none;
     }
     #loading { 
       position: absolute; 
