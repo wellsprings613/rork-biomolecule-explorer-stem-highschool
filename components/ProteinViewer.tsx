@@ -87,6 +87,7 @@ const nglViewerHTML = `
       display: none;
     }
   </style>
+  <script src="https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"></script>
 </head>
 <body>
   <div id="viewport"></div>
@@ -94,7 +95,6 @@ const nglViewerHTML = `
   <div id="error"></div>
   <div id="debug"></div>
   
-  <script src="https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"></script>
   <script>
     // Debug function
     function debug(message) {
@@ -237,16 +237,20 @@ const nglViewerHTML = `
       try {
         // Load a simple PDB structure
         stage.loadFile(new Blob([
-          'ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  \\n' +
-          'ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  \\n' +
-          'ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  \\n' +
-          'ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  \\n' +
-          'ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  \\n' +
-          'END'
-        ], {type: 'text/plain'}), { ext: 'pdb' })
+          \`HEADER    SAMPLE STRUCTURE
+ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  
+ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  
+ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  
+ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  
+ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  
+ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  
+ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  
+ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  
+ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  
+ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  
+END\`
+        ], {type: 'text/plain'}), { ext: 'pdb', defaultRepresentation: true })
           .then(function(component) {
-            component.addRepresentation('cartoon');
-            component.addRepresentation('ball+stick', { sele: 'ligand' });
             stage.autoView();
             debug('Sample structure loaded successfully');
           })
@@ -270,11 +274,14 @@ const nglViewerHTML = `
           
           // Load PDB data
           const format = data.format || 'pdb';
-          const ext = format === 'cif' ? 'cif' : 'pdb';
+          const ext = format === 'cif' ? 'cif' : (format === 'mol2' ? 'mol2' : 'pdb');
           
           debug('Loading structure: format=' + format + ', ext=' + ext + ', content length=' + data.content.length);
           
-          stage.loadFile(new Blob([data.content], {type: 'text/plain'}), { ext: ext })
+          stage.loadFile(new Blob([data.content], {type: 'text/plain'}), { 
+            ext: ext, 
+            defaultRepresentation: false 
+          })
             .then(function(component) {
               // Apply representation based on settings
               applyRepresentation(component, data.representation, data.colorScheme);
@@ -292,11 +299,12 @@ const nglViewerHTML = `
             })
             .catch(function(error) {
               showError('Failed to load structure: ' + error.message);
+              // Try to load sample structure as fallback
+              loadSampleStructure();
             });
         } else if (data.type === 'updateRepresentation') {
           // Update representation for all components
           stage.eachComponent(function(component) {
-            component.removeAllRepresentations();
             applyRepresentation(component, data.representation, data.colorScheme);
           });
           
@@ -309,6 +317,22 @@ const nglViewerHTML = `
           // Reset view to default
           stage.autoView();
           debug('Reset view');
+        } else if (data.type === 'zoomIn') {
+          // Zoom in
+          stage.viewer.controls.zoom(0.5);
+          debug('Zoom in');
+        } else if (data.type === 'zoomOut') {
+          // Zoom out
+          stage.viewer.controls.zoom(-0.5);
+          debug('Zoom out');
+        } else if (data.type === 'move') {
+          // Toggle mouse mode
+          stage.mouseControls.togglePreset();
+          debug('Toggle mouse mode');
+        } else if (data.type === 'fullscreen') {
+          // Toggle fullscreen
+          stage.toggleFullscreen();
+          debug('Toggle fullscreen');
         } else if (data.type === 'loadSample') {
           // Load sample structure
           loadSampleStructure();
@@ -323,9 +347,15 @@ const nglViewerHTML = `
       if (stage) stage.handleResize();
     });
     
-    // Initial setup
+    // Initial setup - load sample structure if no data is provided within 2 seconds
     if (stage) {
       stage.handleResize();
+      setTimeout(function() {
+        if (stage.compList.length === 0) {
+          debug('No structure loaded after timeout, loading sample structure');
+          loadSampleStructure();
+        }
+      }, 2000);
     }
   </script>
 </body>
@@ -388,7 +418,7 @@ export default function ProteinViewer() {
   useEffect(() => {
     if (!viewerReady || !webViewRef.current) return;
     
-    if (currentProtein) {
+    if (currentProtein && currentProtein.rawContent) {
       loadProteinStructure();
     } else {
       // Load sample structure if no protein is loaded
@@ -420,13 +450,18 @@ export default function ProteinViewer() {
 
     console.log('Loading protein structure:', currentProtein.name);
     
-    // Generate PDB content from the protein structure
-    const pdbContent = generatePDBContent(currentProtein);
+    // Use the raw content if available, otherwise generate PDB content
+    const content = currentProtein.rawContent || generatePDBContent(currentProtein);
     
-    // Send the PDB content to the WebView
+    if (!content) {
+      setViewerError("Failed to generate protein structure content");
+      return;
+    }
+    
+    // Send the content to the WebView
     webViewRef.current.postMessage(JSON.stringify({
       type: 'loadPDB',
-      content: pdbContent,
+      content: content,
       format: currentProtein.fileFormat || 'pdb',
       representation: viewerSettings.representation,
       colorScheme: viewerSettings.colorScheme,

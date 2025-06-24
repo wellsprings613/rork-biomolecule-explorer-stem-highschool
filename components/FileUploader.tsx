@@ -41,10 +41,10 @@ export default function FileUploader() {
         // Handle file reading differently based on platform
         if (Platform.OS === 'web') {
           // On web, use the File API
-          if (typeof fileObj.text === 'function') {
+          if (fileObj instanceof File) {
             fileContent = await fileObj.text();
           } else {
-            // Fallback for older browsers
+            // Fallback for older browsers or non-File objects
             const reader = new FileReader();
             fileContent = await new Promise((resolve, reject) => {
               reader.onload = () => resolve(reader.result as string);
@@ -114,24 +114,24 @@ export default function FileUploader() {
   };
 
   // Web-only drag and drop handlers
-  const handleDragEnter = useCallback((e: any) => {
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: any) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   }, []);
 
-  const handleDragOver = useCallback((e: any) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e: any) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);

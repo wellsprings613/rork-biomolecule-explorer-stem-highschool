@@ -125,7 +125,7 @@ export const isPdbFile = async (file: any): Promise<boolean> => {
     
     if (Platform.OS === 'web') {
       // For web
-      if (typeof file.text === 'function') {
+      if (file instanceof File && typeof file.text === 'function') {
         content = await file.text();
       } else {
         // Fallback for older browsers
