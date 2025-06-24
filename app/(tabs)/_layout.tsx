@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Home, Info, Settings } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
+import { Platform, StyleSheet, View } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -11,6 +12,12 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.gray[500],
         tabBarStyle: {
           borderTopColor: colors.gray[200],
+          ...Platform.select({
+            ios: {
+              paddingBottom: 10, // Add extra padding for iOS devices
+              height: 80, // Increase height for iOS
+            }
+          })
         },
         headerStyle: {
           backgroundColor: colors.white,
@@ -18,6 +25,12 @@ export default function TabLayout() {
         headerTitleStyle: {
           color: colors.gray[900],
           fontWeight: '600',
+        },
+        tabBarItemStyle: {
+          paddingVertical: 6,
+        },
+        tabBarIconStyle: {
+          marginBottom: 4,
         },
       }}
     >

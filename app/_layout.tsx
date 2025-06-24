@@ -5,6 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/colors";
+import { Platform } from "react-native";
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -55,6 +56,12 @@ function RootLayoutNav() {
           contentStyle: {
             backgroundColor: colors.background,
           },
+          // Add safe area insets for iOS devices
+          ...Platform.select({
+            ios: {
+              headerShadowVisible: false,
+            }
+          })
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

@@ -59,6 +59,7 @@ const nglViewerHTML = `
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
+      padding-bottom: env(safe-area-inset-bottom);
     }
     #viewport { 
       width: 100%; 
@@ -66,7 +67,7 @@ const nglViewerHTML = `
       position: absolute;
       top: 0;
       left: 0;
-      z-index: 1;
+      z-index: 5;
     }
     #loading { 
       position: absolute; 
@@ -126,6 +127,50 @@ const nglViewerHTML = `
     #reset-view:hover {
       background-color: rgba(240, 240, 240, 0.9);
     }
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 8px;
+      border-radius: 8px;
+      z-index: 15;
+    }
+    .control-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 20px;
+      background-color: white;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .control-btn:hover {
+      background-color: #f0f0f0;
+    }
+    .control-btn:active {
+      background-color: #e0e0e0;
+    }
+    .control-icon {
+      width: 24px;
+      height: 24px;
+      fill: #333;
+    }
+    .annotation-overlay {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 70px;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 8px;
+      padding: 12px;
+      z-index: 10;
+    }
   </style>
   <!-- Use a specific version of NGL for stability -->
   <script src="https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"></script>
@@ -136,6 +181,31 @@ const nglViewerHTML = `
   <div id="error"></div>
   <div id="debug"></div>
   <button id="reset-view" title="Reset View">Reset View</button>
+  
+  <div id="controls" style="display: none;">
+    <button class="control-btn" id="zoom-in" title="Zoom In">
+      <svg class="control-icon" viewBox="0 0 24 24">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2z"/>
+      </svg>
+    </button>
+    <button class="control-btn" id="zoom-out" title="Zoom Out">
+      <svg class="control-icon" viewBox="0 0 24 24">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        <path d="M7 9h5v1H7z"/>
+      </svg>
+    </button>
+    <button class="control-btn" id="rotate" title="Toggle Rotation">
+      <svg class="control-icon" viewBox="0 0 24 24">
+        <path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/>
+      </svg>
+    </button>
+    <button class="control-btn" id="fullscreen" title="Toggle Fullscreen">
+      <svg class="control-icon" viewBox="0 0 24 24">
+        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+      </svg>
+    </button>
+  </div>
   
   <script>
     // Debug function
@@ -177,6 +247,7 @@ const nglViewerHTML = `
     // Hide loading indicator
     function hideLoading() {
       document.getElementById('loading').style.display = 'none';
+      document.getElementById('controls').style.display = 'flex';
     }
 
     // Show reset view button
@@ -187,6 +258,8 @@ const nglViewerHTML = `
     // Create NGL Stage object with improved configuration
     let stage;
     let currentComponent = null;
+    let isRotating = false;
+    let rotationInterval = null;
     
     try {
       // Initialize NGL Stage with better defaults for mobile
@@ -227,6 +300,49 @@ const nglViewerHTML = `
       document.getElementById('reset-view').addEventListener('click', function() {
         if (stage) {
           stage.autoView(1000); // Smooth transition to default view
+        }
+      });
+      
+      // Add zoom in button handler
+      document.getElementById('zoom-in').addEventListener('click', function() {
+        if (stage) {
+          stage.viewer.controls.dollyIn(1.2);
+          stage.viewer.requestRender();
+        }
+      });
+      
+      // Add zoom out button handler
+      document.getElementById('zoom-out').addEventListener('click', function() {
+        if (stage) {
+          stage.viewer.controls.dollyOut(1.2);
+          stage.viewer.requestRender();
+        }
+      });
+      
+      // Add rotation button handler
+      document.getElementById('rotate').addEventListener('click', function() {
+        if (!stage) return;
+        
+        isRotating = !isRotating;
+        
+        if (isRotating) {
+          // Start rotation
+          this.style.backgroundColor = '#e0e0e0';
+          rotationInterval = setInterval(function() {
+            stage.viewer.controls.rotate(0.01, 0);
+            stage.viewer.requestRender();
+          }, 20);
+        } else {
+          // Stop rotation
+          this.style.backgroundColor = 'white';
+          clearInterval(rotationInterval);
+        }
+      });
+      
+      // Add fullscreen button handler
+      document.getElementById('fullscreen').addEventListener('click', function() {
+        if (stage) {
+          stage.toggleFullscreen();
         }
       });
       
@@ -417,6 +533,7 @@ const nglViewerHTML = `
           
           // Show loading indicator
           document.getElementById('loading').style.display = 'block';
+          document.getElementById('controls').style.display = 'none';
           
           // Load PDB data
           const format = data.format || 'pdb';
@@ -522,6 +639,12 @@ const nglViewerHTML = `
         } else if (data.type === 'loadSample') {
           // Load sample structure
           loadSampleStructure();
+        } else if (data.type === 'toggleRotation') {
+          // Toggle rotation
+          const rotateBtn = document.getElementById('rotate');
+          if (rotateBtn) {
+            rotateBtn.click();
+          }
         }
       } catch (error) {
         showError('Error processing message: ' + error.message);
@@ -712,6 +835,19 @@ export default function ProteinViewer() {
     
     webViewRef.current.postMessage(JSON.stringify({
       type: 'resetView'
+    }));
+  };
+
+  // Toggle rotation
+  const toggleRotation = () => {
+    if (!viewerReady || !webViewRef.current) return;
+    
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    webViewRef.current.postMessage(JSON.stringify({
+      type: 'toggleRotation'
     }));
   };
 

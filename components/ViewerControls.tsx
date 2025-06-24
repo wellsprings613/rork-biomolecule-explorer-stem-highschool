@@ -53,6 +53,8 @@ export default function ViewerControls() {
             pressed && styles.controlButtonPressed
           ]}
           onPress={() => handleControlAction('resetView')}
+          accessibilityLabel="Reset view"
+          accessibilityHint="Resets the protein view to its default position"
         >
           <RotateCcw size={20} color={colors.gray[700]} />
         </Pressable>
@@ -62,6 +64,8 @@ export default function ViewerControls() {
             pressed && styles.controlButtonPressed
           ]}
           onPress={() => handleControlAction('zoomIn')}
+          accessibilityLabel="Zoom in"
+          accessibilityHint="Zooms in on the protein structure"
         >
           <ZoomIn size={20} color={colors.gray[700]} />
         </Pressable>
@@ -71,6 +75,8 @@ export default function ViewerControls() {
             pressed && styles.controlButtonPressed
           ]}
           onPress={() => handleControlAction('zoomOut')}
+          accessibilityLabel="Zoom out"
+          accessibilityHint="Zooms out from the protein structure"
         >
           <ZoomOut size={20} color={colors.gray[700]} />
         </Pressable>
@@ -79,7 +85,9 @@ export default function ViewerControls() {
             styles.controlButton,
             pressed && styles.controlButtonPressed
           ]}
-          onPress={() => handleControlAction('move')}
+          onPress={() => handleControlAction('toggleRotation')}
+          accessibilityLabel="Toggle rotation"
+          accessibilityHint="Starts or stops automatic rotation of the protein structure"
         >
           <Move size={20} color={colors.gray[700]} />
         </Pressable>
@@ -89,6 +97,8 @@ export default function ViewerControls() {
             pressed && styles.controlButtonPressed
           ]}
           onPress={() => handleControlAction('fullscreen')}
+          accessibilityLabel="Fullscreen"
+          accessibilityHint="Toggles fullscreen mode for the protein viewer"
         >
           <Maximize2 size={20} color={colors.gray[700]} />
         </Pressable>
@@ -124,6 +134,8 @@ export default function ViewerControls() {
                     }
                   }
                 }}
+                accessibilityLabel={`${rep.label} representation`}
+                accessibilityHint={`Changes the protein display to ${rep.label} style`}
               >
                 <Text 
                   style={[
@@ -167,6 +179,8 @@ export default function ViewerControls() {
                     }
                   }
                 }}
+                accessibilityLabel={`${scheme.label} color scheme`}
+                accessibilityHint={`Colors the protein ${scheme.label.toLowerCase()}`}
               >
                 <Text 
                   style={[
@@ -191,6 +205,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
     padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16, // Add extra padding for iOS devices
   },
   controlsRow: {
     flexDirection: 'row',
