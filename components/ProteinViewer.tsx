@@ -46,7 +46,7 @@ const nglViewerHTML = `
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>NGL Protein Viewer</title>
   <style>
     body, html { 
@@ -728,10 +728,8 @@ export default function ProteinViewer() {
     let pdbContent = '';
     
     // Add header
-    pdbContent += `HEADER    ${protein.name || 'UNKNOWN'}
-`;
-    pdbContent += `TITLE     ${protein.description || 'No description'}
-`;
+    pdbContent += `HEADER    ${protein.name || 'UNKNOWN'}\n`;
+    pdbContent += `TITLE     ${protein.description || 'No description'}\n`;
     
     // Add atoms
     if (protein.atoms && protein.atoms.length > 0) {
@@ -746,8 +744,7 @@ export default function ProteinViewer() {
         const y = (atom.y || 0).toFixed(3).padStart(8, ' ');
         const z = (atom.z || 0).toFixed(3).padStart(8, ' ');
         
-        const atomLine = `ATOM  ${atomId.toString().padStart(5, ' ')} ${atomName} ${resName} ${chainId}${resNum.toString().padStart(4, ' ')}    ${x} ${y} ${z}  1.00  0.00           ${atom.element.padEnd(2, ' ')}
-`;
+        const atomLine = `ATOM  ${atomId.toString().padStart(5, ' ')} ${atomName} ${resName} ${chainId}${resNum.toString().padStart(4, ' ')}    ${x} ${y} ${z}  1.00  0.00           ${atom.element.padEnd(2, ' ')}\n`;
         pdbContent += atomLine;
       });
     } else {
@@ -756,8 +753,7 @@ export default function ProteinViewer() {
     }
     
     // Add end
-    pdbContent += 'END
-';
+    pdbContent += 'END\n';
     
     return pdbContent;
   };

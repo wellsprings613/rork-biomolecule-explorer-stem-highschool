@@ -125,7 +125,8 @@ export const parsePDB = (pdbData: string): ProteinStructure => {
     description,
     chains,
     atoms,
-    fileFormat: 'pdb'
+    fileFormat: 'pdb',
+    rawContent: pdbData
   };
 };
 
@@ -337,7 +338,8 @@ export const parseCIF = (cifData: string): ProteinStructure => {
     description,
     chains,
     atoms,
-    fileFormat: 'cif'
+    fileFormat: 'cif',
+    rawContent: cifData
   };
 };
 
@@ -406,7 +408,8 @@ export const parseMOL = (molData: string): ProteinStructure => {
     description: 'Imported from MOL format',
     chains: [chain],
     atoms,
-    fileFormat: 'mol'
+    fileFormat: 'mol',
+    rawContent: molData
   };
 };
 
@@ -520,7 +523,8 @@ export const parseMOL2 = (mol2Data: string): ProteinStructure => {
     description: 'Imported from MOL2 format',
     chains,
     atoms,
-    fileFormat: 'mol2'
+    fileFormat: 'mol2',
+    rawContent: mol2Data
   };
 };
 
