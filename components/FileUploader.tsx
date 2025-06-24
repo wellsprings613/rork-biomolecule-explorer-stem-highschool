@@ -100,13 +100,14 @@ export default function FileUploader() {
           
           // Create a minimal fallback structure with the raw content
           // This ensures the viewer can still try to render something
+          const fileFormatValue: FileFormat = (fileExtension as FileFormat) || 'pdb';
           const fallbackProtein = {
             id: Date.now().toString(),
             name: fileObj.name || 'Unreadable File',
             description: 'This file could not be fully parsed, but the viewer will attempt to render it directly.',
             chains: [],
             atoms: [],
-            fileFormat: fileExtension as FileFormat || 'pdb',
+            fileFormat: fileFormatValue,
             rawContent: fileContent
           };
           
@@ -267,7 +268,7 @@ export default function FileUploader() {
             description: 'Sample protein structure (myoglobin)',
             chains: [],
             atoms: [],
-            fileFormat: 'pdb',
+            fileFormat: 'pdb' as FileFormat,
             rawContent: fileContent
           };
           
@@ -287,7 +288,7 @@ export default function FileUploader() {
           description: 'Sample protein structure (myoglobin)',
           chains: [],
           atoms: [],
-          fileFormat: 'pdb',
+          fileFormat: 'pdb' as FileFormat,
           rawContent: fileContent
         };
         
