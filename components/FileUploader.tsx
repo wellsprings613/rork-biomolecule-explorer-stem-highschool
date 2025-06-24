@@ -11,9 +11,6 @@ import * as Haptics from 'expo-haptics';
 import { isPdbFile } from '@/utils/fileFormatDetector';
 import * as FileSystem from 'expo-file-system';
 
-// Define a type for DragEvent that works across platforms
-type DragEventType = any; // Using any for cross-platform compatibility
-
 export default function FileUploader() {
   const { setCurrentProtein, setProteinSummary, setLoading, setError } = useProteinStore();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -44,7 +41,17 @@ export default function FileUploader() {
         // Handle file reading differently based on platform
         if (Platform.OS === 'web') {
           // On web, use the File API
-          fileContent = await fileObj.text();
+          if (typeof fileObj.text === 'function') {
+            fileContent = await fileObj.text();
+          } else {
+            // Fallback for older browsers
+            const reader = new FileReader();
+            fileContent = await new Promise((resolve, reject) => {
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsText(fileObj);
+            });
+          }
         } else {
           // On native, use FileSystem
           if (fileObj.uri) {
@@ -58,6 +65,9 @@ export default function FileUploader() {
         const protein = await parseProteinFile(fileContent, fileObj.name);
         
         if (protein) {
+          // Store the raw content for rendering
+          protein.rawContent = fileContent;
+          
           setCurrentProtein(protein);
           setDetectedFormat(protein.fileFormat || null);
           
@@ -104,24 +114,24 @@ export default function FileUploader() {
   };
 
   // Web-only drag and drop handlers
-  const handleDragEnter = useCallback((e: DragEventType) => {
+  const handleDragEnter = useCallback((e: any) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: DragEventType) => {
+  const handleDragLeave = useCallback((e: any) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   }, []);
 
-  const handleDragOver = useCallback((e: DragEventType) => {
+  const handleDragOver = useCallback((e: any) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e: DragEventType) => {
+  const handleDrop = useCallback((e: any) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);

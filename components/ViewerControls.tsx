@@ -30,35 +30,18 @@ export default function ViewerControls() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
-    // In a real implementation, you would send messages to the WebView
-    // to control the 3D viewer
-    switch (action) {
-      case 'reset':
-        // Reset view to default
-        if (window.document.querySelector('iframe')) {
-          const iframe = window.document.querySelector('iframe');
-          if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage(JSON.stringify({
-              type: 'resetView'
-            }), '*');
-          }
-        }
-        break;
-      case 'zoomIn':
-        // Zoom in
-        break;
-      case 'zoomOut':
-        // Zoom out
-        break;
-      case 'move':
-        // Toggle move mode
-        break;
-      case 'fullscreen':
-        // Toggle fullscreen
-        break;
-      default:
-        break;
+    // Send messages to the WebView to control the 3D viewer
+    const message = { type: action };
+    
+    if (Platform.OS === 'web') {
+      // For web, post message to iframe
+      const iframe = document.querySelector('iframe');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(JSON.stringify(message), '*');
+      }
     }
+    
+    // The actual control actions will be handled by the WebView
   };
 
   return (
@@ -69,7 +52,7 @@ export default function ViewerControls() {
             styles.controlButton,
             pressed && styles.controlButtonPressed
           ]}
-          onPress={() => handleControlAction('reset')}
+          onPress={() => handleControlAction('resetView')}
         >
           <RotateCcw size={20} color={colors.gray[700]} />
         </Pressable>

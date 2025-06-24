@@ -37,6 +37,7 @@ export interface ProteinStructure {
   experimentMethod?: string;
   releaseDate?: string;
   fileFormat?: FileFormat;
+  rawContent?: string; // Added to store the original file content for rendering
 }
 
 export interface ProteinSummary {
