@@ -359,18 +359,18 @@ const nglViewerHTML = `
       try {
         // Load a simple PDB structure
         stage.loadFile(new Blob([
-          \`HEADER    SAMPLE STRUCTURE
-ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  
-ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  
-ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  
-ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  
-ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  
-ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  
-ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  
-ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  
-ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  
-ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  
-END\`
+          "HEADER    SAMPLE STRUCTURE\\n" +
+          "ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  \\n" +
+          "ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  \\n" +
+          "ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  \\n" +
+          "ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  \\n" +
+          "ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  \\n" +
+          "ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  \\n" +
+          "ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  \\n" +
+          "ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  \\n" +
+          "ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  \\n" +
+          "ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  \\n" +
+          "END"
         ], {type: 'text/plain'}), { ext: 'pdb' })
           .then(function(component) {
             currentComponent = component;
