@@ -61,29 +61,61 @@ export default function FileUploader() {
           }
         }
         
-        // Now parse the file content
-        const protein = await parseProteinFile(fileContent, fileObj.name);
+        console.log(`File content loaded, length: ${fileContent.length}, first 50 chars: ${fileContent.substring(0, 50)}`);
         
-        if (protein) {
-          // Store the raw content for rendering
-          protein.rawContent = fileContent;
+        // Now parse the file content
+        try {
+          const protein = await parseProteinFile(fileContent, fileObj.name);
           
-          setCurrentProtein(protein);
-          setDetectedFormat(protein.fileFormat || null);
-          
-          // Generate summary
-          const summary = await generateProteinSummary(protein);
-          setProteinSummary(summary);
-          
-          // Provide success feedback
-          if (Platform.OS !== 'web') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (protein) {
+            console.log('Protein parsed successfully:', protein.name);
+            // Store the raw content for rendering
+            protein.rawContent = fileContent;
+            
+            setCurrentProtein(protein);
+            setDetectedFormat(protein.fileFormat || null);
+            
+            // Generate summary
+            try {
+              const summary = await generateProteinSummary(protein);
+              setProteinSummary(summary);
+            } catch (summaryError) {
+              console.error('Error generating summary:', summaryError);
+              // Continue even if summary generation fails
+            }
+            
+            // Provide success feedback
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+          } else {
+            console.error('Protein parsing returned null');
+            setError('Failed to parse file. Please check the file format.');
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            }
           }
-        } else {
-          setError('Failed to parse file. Please check the file format.');
-          if (Platform.OS !== 'web') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          }
+        } catch (parseError: any) {
+          console.error('Error parsing protein file:', parseError);
+          
+          // Create a minimal fallback structure with the raw content
+          // This ensures the viewer can still try to render something
+          const fallbackProtein = {
+            id: Date.now().toString(),
+            name: fileObj.name || 'Unreadable File',
+            description: 'This file could not be fully parsed, but the viewer will attempt to render it directly.',
+            chains: [],
+            atoms: [],
+            fileFormat: fileExtension as FileFormat || 'pdb',
+            rawContent: fileContent
+          };
+          
+          console.log('Using fallback protein structure');
+          setCurrentProtein(fallbackProtein);
+          setDetectedFormat(fallbackProtein.fileFormat);
+          
+          // Still show an error but don't block rendering
+          setError(`Warning: ${parseError.message || 'Failed to parse file properly'}. Attempting direct rendering.`);
         }
       } catch (error: any) {
         console.error('Error details:', error);
@@ -179,8 +211,8 @@ export default function FileUploader() {
       setLoading(true);
       setError(null);
       
-      // Hemoglobin (4HHB) - a well-known protein structure
-      const samplePdbUrl = 'https://files.rcsb.org/download/4HHB.pdb';
+      // Hemoglobin (1MBN) - a well-known protein structure
+      const samplePdbUrl = 'https://files.rcsb.org/download/1MBN.pdb';
       
       let fileContent: string;
       
@@ -195,7 +227,7 @@ export default function FileUploader() {
         // Download the file on native
         const downloadResult = await FileSystem.downloadAsync(
           samplePdbUrl,
-          FileSystem.cacheDirectory + '4HHB.pdb'
+          FileSystem.cacheDirectory + '1MBN.pdb'
         );
         
         if (downloadResult.status !== 200) {
@@ -205,27 +237,65 @@ export default function FileUploader() {
         fileContent = await FileSystem.readAsStringAsync(downloadResult.uri);
       }
       
-      // Parse the file content
-      const protein = await parseProteinFile(fileContent, '4HHB.pdb');
+      console.log(`Sample PDB loaded, length: ${fileContent.length}`);
       
-      if (protein) {
-        // Store the raw content for rendering
-        protein.rawContent = fileContent;
+      // Parse the file content
+      try {
+        const protein = await parseProteinFile(fileContent, '1MBN.pdb');
         
-        setCurrentProtein(protein);
-        setDetectedFormat('pdb');
-        setFileName('4HHB.pdb (Hemoglobin)');
-        
-        // Generate summary
-        const summary = await generateProteinSummary(protein);
-        setProteinSummary(summary);
-        
-        // Provide success feedback
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (protein) {
+          // Store the raw content for rendering
+          protein.rawContent = fileContent;
+          
+          setCurrentProtein(protein);
+          setDetectedFormat('pdb');
+          setFileName('1MBN.pdb (Myoglobin)');
+          
+          // Generate summary
+          const summary = await generateProteinSummary(protein);
+          setProteinSummary(summary);
+          
+          // Provide success feedback
+          if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        } else {
+          // Fallback if parsing fails
+          const fallbackProtein = {
+            id: Date.now().toString(),
+            name: '1MBN (Myoglobin)',
+            description: 'Sample protein structure (myoglobin)',
+            chains: [],
+            atoms: [],
+            fileFormat: 'pdb',
+            rawContent: fileContent
+          };
+          
+          setCurrentProtein(fallbackProtein);
+          setDetectedFormat('pdb');
+          setFileName('1MBN.pdb (Myoglobin)');
+          
+          setError('Warning: Could not fully parse the sample PDB file. Attempting direct rendering.');
         }
-      } else {
-        setError('Failed to parse sample PDB file.');
+      } catch (parseError) {
+        console.error('Error parsing sample PDB:', parseError);
+        
+        // Create a minimal fallback structure with the raw content
+        const fallbackProtein = {
+          id: Date.now().toString(),
+          name: '1MBN (Myoglobin)',
+          description: 'Sample protein structure (myoglobin)',
+          chains: [],
+          atoms: [],
+          fileFormat: 'pdb',
+          rawContent: fileContent
+        };
+        
+        setCurrentProtein(fallbackProtein);
+        setDetectedFormat('pdb');
+        setFileName('1MBN.pdb (Myoglobin)');
+        
+        setError('Warning: Could not parse the sample PDB file properly. Attempting direct rendering.');
       }
     } catch (error: any) {
       console.error('Error loading sample PDB:', error);
@@ -307,7 +377,7 @@ export default function FileUploader() {
         onPress={loadSamplePDB}
       >
         <Text style={styles.sampleButtonText}>
-          Load Sample (Hemoglobin)
+          Load Sample (Myoglobin)
         </Text>
       </Pressable>
     </View>

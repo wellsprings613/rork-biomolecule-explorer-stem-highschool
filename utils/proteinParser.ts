@@ -3,6 +3,7 @@ import { detectFileFormat, validateFileContent } from './fileFormatDetector';
 
 // Simple PDB parser (basic implementation)
 export const parsePDB = (pdbData: string): ProteinStructure => {
+  console.log('Parsing PDB data, length:', pdbData.length);
   const lines = pdbData.split('\n');
   const atoms: Atom[] = [];
   const chainMap = new Map<string, Residue[]>();
@@ -17,86 +18,108 @@ export const parsePDB = (pdbData: string): ProteinStructure => {
     } else if (line.startsWith('TITLE')) {
       description += line.substring(10).trim() + ' ';
     } else if (line.startsWith('ATOM') || line.startsWith('HETATM')) {
-      // Parse atom data
-      const atomId = parseInt(line.substring(6, 11).trim());
-      const element = line.substring(76, 78).trim();
-      const x = parseFloat(line.substring(30, 38).trim());
-      const y = parseFloat(line.substring(38, 46).trim());
-      const z = parseFloat(line.substring(46, 54).trim());
-      const residueName = line.substring(17, 20).trim();
-      const residueNumber = parseInt(line.substring(22, 26).trim());
-      const chainId = line.substring(21, 22).trim();
-      
-      const atom: Atom = {
-        id: atomId,
-        element,
-        x, y, z,
-        residue: residueName,
-        residueNumber,
-        chain: chainId
-      };
-      
-      atoms.push(atom);
-      
-      // Group atoms by chain and residue
-      if (!chainMap.has(chainId)) {
-        chainMap.set(chainId, []);
-      }
-      
-      const chainResidues = chainMap.get(chainId)!;
-      let residue = chainResidues.find(r => r.id === residueNumber);
-      
-      if (!residue) {
-        residue = {
-          id: residueNumber,
-          name: residueName,
-          chain: chainId,
-          atoms: []
+      try {
+        // Parse atom data
+        const atomId = parseInt(line.substring(6, 11).trim());
+        const element = line.substring(76, 78).trim() || 'C'; // Default to carbon if missing
+        const x = parseFloat(line.substring(30, 38).trim());
+        const y = parseFloat(line.substring(38, 46).trim());
+        const z = parseFloat(line.substring(46, 54).trim());
+        const residueName = line.substring(17, 20).trim();
+        const residueNumber = parseInt(line.substring(22, 26).trim());
+        const chainId = line.substring(21, 22).trim() || 'A'; // Default to chain A if missing
+        
+        // Skip if coordinates are invalid
+        if (isNaN(x) || isNaN(y) || isNaN(z)) {
+          continue;
+        }
+        
+        const atom: Atom = {
+          id: atomId,
+          element,
+          x, y, z,
+          residue: residueName,
+          residueNumber,
+          chain: chainId
         };
-        chainResidues.push(residue);
-      }
-      
-      residue.atoms.push(atom);
-    } else if (line.startsWith('HELIX')) {
-      // Parse helix information
-      const chainId = line.substring(19, 20).trim();
-      const startRes = parseInt(line.substring(21, 25).trim());
-      const endRes = parseInt(line.substring(33, 37).trim());
-      
-      if (chainMap.has(chainId)) {
+        
+        atoms.push(atom);
+        
+        // Group atoms by chain and residue
+        if (!chainMap.has(chainId)) {
+          chainMap.set(chainId, []);
+        }
+        
         const chainResidues = chainMap.get(chainId)!;
-        for (const residue of chainResidues) {
-          if (residue.id >= startRes && residue.id <= endRes) {
-            residue.secondaryStructure = 'helix';
+        let residue = chainResidues.find(r => r.id === residueNumber);
+        
+        if (!residue) {
+          residue = {
+            id: residueNumber,
+            name: residueName,
+            chain: chainId,
+            atoms: []
+          };
+          chainResidues.push(residue);
+        }
+        
+        residue.atoms.push(atom);
+      } catch (error) {
+        console.error('Error parsing PDB atom line:', error);
+        // Continue to next line
+      }
+    } else if (line.startsWith('HELIX')) {
+      try {
+        // Parse helix information
+        const chainId = line.substring(19, 20).trim();
+        const startRes = parseInt(line.substring(21, 25).trim());
+        const endRes = parseInt(line.substring(33, 37).trim());
+        
+        if (chainMap.has(chainId)) {
+          const chainResidues = chainMap.get(chainId)!;
+          for (const residue of chainResidues) {
+            if (residue.id >= startRes && residue.id <= endRes) {
+              residue.secondaryStructure = 'helix';
+            }
           }
         }
+      } catch (error) {
+        console.error('Error parsing PDB helix line:', error);
       }
     } else if (line.startsWith('SHEET')) {
-      // Parse sheet information
-      const chainId = line.substring(21, 22).trim();
-      const startRes = parseInt(line.substring(22, 26).trim());
-      const endRes = parseInt(line.substring(33, 37).trim());
-      
-      if (chainMap.has(chainId)) {
-        const chainResidues = chainMap.get(chainId)!;
-        for (const residue of chainResidues) {
-          if (residue.id >= startRes && residue.id <= endRes) {
-            residue.secondaryStructure = 'sheet';
+      try {
+        // Parse sheet information
+        const chainId = line.substring(21, 22).trim();
+        const startRes = parseInt(line.substring(22, 26).trim());
+        const endRes = parseInt(line.substring(33, 37).trim());
+        
+        if (chainMap.has(chainId)) {
+          const chainResidues = chainMap.get(chainId)!;
+          for (const residue of chainResidues) {
+            if (residue.id >= startRes && residue.id <= endRes) {
+              residue.secondaryStructure = 'sheet';
+            }
           }
         }
+      } catch (error) {
+        console.error('Error parsing PDB sheet line:', error);
       }
     } else if (line.startsWith('SITE')) {
-      // Parse binding site information
-      const chainId = line.substring(22, 23).trim();
-      const residueNumber = parseInt(line.substring(23, 27).trim());
-      
-      if (chainMap.has(chainId)) {
-        const chainResidues = chainMap.get(chainId)!;
-        const residue = chainResidues.find(r => r.id === residueNumber);
-        if (residue) {
-          residue.isFunctional = true;
-          residue.functionalType = 'binding';
+      try {
+        // Parse binding site information
+        const chainId = line.substring(22, 23).trim();
+        const residueNumber = parseInt(line.substring(23, 27).trim());
+        
+        if (chainMap.has(chainId)) {
+          const chainResidues = chainMap.get(chainId)!;
+          const residue = chainResidues.find(r => r.id === residueNumber);
+          if (residue) {
+            residue.isFunctional = true;
+            residue.functionalType = 'binding';
+          }
         }
+      } catch (error) {
+        console.error('Error parsing PDB site line:', error);
       }
     }
   }
@@ -119,6 +142,8 @@ export const parsePDB = (pdbData: string): ProteinStructure => {
     });
   }
   
+  console.log(`PDB parsing complete: ${atoms.length} atoms, ${chains.length} chains`);
+  
   return {
     id: Date.now().toString(),
     name,
@@ -132,6 +157,7 @@ export const parsePDB = (pdbData: string): ProteinStructure => {
 
 // Improved mmCIF parser with better error handling
 export const parseCIF = (cifData: string): ProteinStructure => {
+  console.log('Parsing CIF data, length:', cifData.length);
   const lines = cifData.split('\n');
   const atoms: Atom[] = [];
   const chainMap = new Map<string, Residue[]>();
@@ -213,7 +239,7 @@ export const parseCIF = (cifData: string): ProteinStructure => {
         };
         
         const atomId = parseInt(getColumnValue(['id', 'label_atom_id'], '0'));
-        const element = getColumnValue(['type_symbol', 'label_element'], 'X');
+        const element = getColumnValue(['type_symbol', 'label_element'], 'C');
         const x = parseFloat(getColumnValue(['Cartn_x', 'x_coord'], '0'));
         const y = parseFloat(getColumnValue(['Cartn_y', 'y_coord'], '0'));
         const z = parseFloat(getColumnValue(['Cartn_z', 'z_coord'], '0'));
@@ -228,7 +254,7 @@ export const parseCIF = (cifData: string): ProteinStructure => {
         
         const atom: Atom = {
           id: atomId || atoms.length + 1, // Use counter if ID is missing
-          element: element || 'X',
+          element: element || 'C',
           x, y, z,
           residue: residueName,
           residueNumber: residueNumber || 1, // Default to 1 if missing
@@ -332,6 +358,8 @@ export const parseCIF = (cifData: string): ProteinStructure => {
     });
   }
   
+  console.log(`CIF parsing complete: ${atoms.length} atoms, ${chains.length} chains`);
+  
   return {
     id: Date.now().toString(),
     name,
@@ -345,6 +373,7 @@ export const parseCIF = (cifData: string): ProteinStructure => {
 
 // Basic MOL parser
 export const parseMOL = (molData: string): ProteinStructure => {
+  console.log('Parsing MOL data, length:', molData.length);
   const lines = molData.split('\n');
   const atoms: Atom[] = [];
   
@@ -359,7 +388,20 @@ export const parseMOL = (molData: string): ProteinStructure => {
   }
   
   const countsLine = lines[3].trim();
-  const atomCount = parseInt(countsLine.substring(0, 3).trim());
+  let atomCount = 0;
+  
+  try {
+    atomCount = parseInt(countsLine.substring(0, 3).trim());
+  } catch (error) {
+    console.error('Error parsing atom count:', error);
+    // Try to extract the first number from the line
+    const match = countsLine.match(/^\s*(\d+)/);
+    if (match) {
+      atomCount = parseInt(match[1]);
+    } else {
+      throw new Error('Could not determine atom count');
+    }
+  }
   
   // Parse atoms (start at line 4)
   for (let i = 4; i < 4 + atomCount && i < lines.length; i++) {
@@ -370,7 +412,12 @@ export const parseMOL = (molData: string): ProteinStructure => {
       const x = parseFloat(line.substring(0, 10).trim());
       const y = parseFloat(line.substring(10, 20).trim());
       const z = parseFloat(line.substring(20, 30).trim());
-      const element = line.substring(31, 34).trim();
+      const element = line.substring(31, 34).trim() || 'C'; // Default to carbon if missing
+      
+      // Skip if coordinates are invalid
+      if (isNaN(x) || isNaN(y) || isNaN(z)) {
+        continue;
+      }
       
       const atom: Atom = {
         id: i - 3,
@@ -388,6 +435,45 @@ export const parseMOL = (molData: string): ProteinStructure => {
     }
   }
   
+  // If no atoms were found using the standard format, try a more flexible approach
+  if (atoms.length === 0) {
+    console.log('No atoms found with standard parsing, trying simplified approach');
+    
+    // Look for lines with 3 consecutive numbers which could be coordinates
+    let atomCounter = 1;
+    for (let i = 4; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || line.startsWith('M ') || line.startsWith('END')) continue;
+      
+      const parts = line.split(/\s+/).filter(Boolean);
+      if (parts.length < 3) continue;
+      
+      // Try to find 3 consecutive numbers
+      for (let j = 0; j < parts.length - 2; j++) {
+        const x = parseFloat(parts[j]);
+        const y = parseFloat(parts[j + 1]);
+        const z = parseFloat(parts[j + 2]);
+        
+        if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+          // Found potential coordinates
+          const element = parts.length > j + 3 ? parts[j + 3].replace(/[0-9]/g, '') : 'C';
+          
+          const atom: Atom = {
+            id: atomCounter++,
+            element: element || 'C',
+            x, y, z,
+            residue: 'MOL',
+            residueNumber: 1,
+            chain: 'A'
+          };
+          
+          atoms.push(atom);
+          break; // Move to next line
+        }
+      }
+    }
+  }
+  
   // Create a single chain with a single residue containing all atoms
   const residue: Residue = {
     id: 1,
@@ -402,6 +488,8 @@ export const parseMOL = (molData: string): ProteinStructure => {
     residues: [residue]
   };
   
+  console.log(`MOL parsing complete: ${atoms.length} atoms`);
+  
   return {
     id: Date.now().toString(),
     name,
@@ -415,6 +503,7 @@ export const parseMOL = (molData: string): ProteinStructure => {
 
 // Basic MOL2 parser
 export const parseMOL2 = (mol2Data: string): ProteinStructure => {
+  console.log('Parsing MOL2 data, length:', mol2Data.length);
   const lines = mol2Data.split('\n');
   const atoms: Atom[] = [];
   const chainMap = new Map<string, Residue[]>();
@@ -461,8 +550,13 @@ export const parseMOL2 = (mol2Data: string): ProteinStructure => {
         const residueNumber = columns.length > 6 ? parseInt(columns[6]) : 1;
         const chainId = columns.length > 8 ? columns[8] : 'A';
         
+        // Skip if coordinates are invalid
+        if (isNaN(x) || isNaN(y) || isNaN(z)) {
+          continue;
+        }
+        
         // Extract element from atom name (usually first 1-2 characters)
-        const element = atomName.replace(/[0-9]/g, '').substring(0, 2).trim();
+        const element = atomName.replace(/[0-9]/g, '').substring(0, 2).trim() || 'C';
         
         const atom: Atom = {
           id: atomId,
@@ -501,6 +595,61 @@ export const parseMOL2 = (mol2Data: string): ProteinStructure => {
     }
   }
   
+  // If no atoms were found, try a more flexible approach
+  if (atoms.length === 0) {
+    console.log('No atoms found with standard parsing, trying simplified approach');
+    
+    // Look for lines with 3 consecutive numbers which could be coordinates
+    let atomCounter = 1;
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine || trimmedLine.startsWith('@') || trimmedLine.startsWith('#')) continue;
+      
+      const parts = trimmedLine.split(/\s+/).filter(Boolean);
+      if (parts.length < 3) continue;
+      
+      // Try to find 3 consecutive numbers
+      for (let i = 0; i < parts.length - 2; i++) {
+        const x = parseFloat(parts[i]);
+        const y = parseFloat(parts[i + 1]);
+        const z = parseFloat(parts[i + 2]);
+        
+        if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+          // Found potential coordinates
+          const atom: Atom = {
+            id: atomCounter++,
+            element: 'C', // Default element
+            x, y, z,
+            residue: 'UNK',
+            residueNumber: 1,
+            chain: 'A'
+          };
+          
+          atoms.push(atom);
+          
+          // Add to default chain
+          if (!chainMap.has('A')) {
+            chainMap.set('A', []);
+          }
+          
+          let residue = chainMap.get('A')!.find(r => r.id === 1);
+          if (!residue) {
+            residue = {
+              id: 1,
+              name: 'UNK',
+              chain: 'A',
+              atoms: []
+            };
+            chainMap.get('A')!.push(residue);
+          }
+          
+          residue.atoms.push(atom);
+          break; // Move to next line
+        }
+      }
+    }
+  }
+  
   // Set default secondary structure for all residues
   for (const [chainId, residues] of chainMap.entries()) {
     for (const residue of residues) {
@@ -517,6 +666,8 @@ export const parseMOL2 = (mol2Data: string): ProteinStructure => {
     });
   }
   
+  console.log(`MOL2 parsing complete: ${atoms.length} atoms, ${chains.length} chains`);
+  
   return {
     id: Date.now().toString(),
     name,
@@ -531,32 +682,49 @@ export const parseMOL2 = (mol2Data: string): ProteinStructure => {
 // Function to handle different file types
 export const parseProteinFile = async (fileContent: string, fileName: string): Promise<ProteinStructure | null> => {
   try {
+    console.log(`Parsing protein file: ${fileName}, content length: ${fileContent.length}`);
+    
     // Auto-detect file format
     const detectedFormat = detectFileFormat(fileContent, fileName);
     
     if (!detectedFormat) {
+      console.error('Unknown or unsupported file format');
       throw new Error('Unknown or unsupported file format. Please upload a PDB, mmCIF, MOL, or MOL2 file.');
     }
     
+    console.log(`Detected format: ${detectedFormat}`);
+    
     // Validate file content with more lenient validation
     if (!validateFileContent(fileContent, detectedFormat)) {
+      console.error(`Invalid ${detectedFormat} file content`);
       throw new Error(`The file appears to be a ${detectedFormat.toUpperCase()} file but has invalid or corrupted content.`);
     }
     
     // Parse based on detected format
     try {
+      let result: ProteinStructure;
+      
       switch (detectedFormat) {
         case 'pdb':
-          return parsePDB(fileContent);
+          result = parsePDB(fileContent);
+          break;
         case 'cif':
-          return parseCIF(fileContent);
+          result = parseCIF(fileContent);
+          break;
         case 'mol':
-          return parseMOL(fileContent);
+          result = parseMOL(fileContent);
+          break;
         case 'mol2':
-          return parseMOL2(fileContent);
+          result = parseMOL2(fileContent);
+          break;
         default:
           throw new Error(`Unsupported file format: ${detectedFormat}`);
       }
+      
+      // Ensure raw content is stored
+      result.rawContent = fileContent;
+      
+      return result;
     } catch (parsingError) {
       console.error(`Error parsing ${detectedFormat} file:`, parsingError);
       

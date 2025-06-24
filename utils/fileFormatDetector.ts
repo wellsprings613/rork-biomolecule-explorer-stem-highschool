@@ -13,6 +13,8 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
   const lines = normalizedContent.split(/\r?\n/);
   const firstLine = lines[0]?.trim() || '';
   
+  console.log('Detecting file format, first line:', firstLine.substring(0, 20));
+  
   // PDB format detection - more robust checks
   if (
     (firstLine.startsWith('HEADER') || 
@@ -23,11 +25,13 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
     (normalizedContent.includes('ATOM  ') || 
      normalizedContent.includes('HETATM'))
   ) {
+    console.log('Detected PDB format based on header/atom records');
     return 'pdb';
   }
   
   // Additional PDB detection for files without proper headers
   if (lines.some(line => /^ATOM\s+\d+\s+\w+\s+\w+\s+[A-Z]\s+\d+/.test(line))) {
+    console.log('Detected PDB format based on ATOM line pattern');
     return 'pdb';
   }
   
@@ -40,6 +44,7 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
     normalizedContent.includes('_entry.id') ||
     normalizedContent.includes('_chem_comp.')
   ) {
+    console.log('Detected CIF format');
     return 'cif';
   }
   
@@ -49,6 +54,7 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
     normalizedContent.includes('V3000') ||
     (lines.length > 3 && lines[3].trim().match(/^\s*\d+\s+\d+\s+\d+/))
   ) {
+    console.log('Detected MOL format');
     return 'mol';
   }
   
@@ -58,12 +64,14 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
     normalizedContent.includes('@<TRIPOS>ATOM') ||
     normalizedContent.includes('@<TRIPOS>')
   ) {
+    console.log('Detected MOL2 format');
     return 'mol2';
   }
   
   // If content detection fails, try to use file extension as fallback
   if (fileName) {
     const extension = fileName.split('.').pop()?.toLowerCase();
+    console.log('Using file extension as fallback:', extension);
     if (extension === 'pdb') return 'pdb';
     if (extension === 'cif' || extension === 'mmcif') return 'cif';
     if (extension === 'mol') return 'mol';
@@ -75,9 +83,11 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
   const coordPattern = /[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+/;
   if (lines.some(line => coordPattern.test(line))) {
     // If we find coordinate-like patterns, default to PDB as it's most common
+    console.log('Detected coordinate pattern, defaulting to PDB format');
     return 'pdb';
   }
   
+  console.log('Could not detect file format');
   // Unknown format
   return null;
 };
@@ -89,32 +99,43 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
  * @returns True if the file appears valid, false otherwise
  */
 export const validateFileContent = (content: string, format: FileFormat): boolean => {
-  if (!content || content.length < 10) return false;
+  if (!content || content.length < 10) {
+    console.log('File content too short or empty');
+    return false;
+  }
+  
+  console.log(`Validating ${format} file content, length:`, content.length);
   
   // More lenient validation to handle various file formats
   switch (format) {
     case 'pdb':
       // Check for any ATOM or HETATM records or coordinate-like patterns
       if (content.includes('ATOM') || content.includes('HETATM')) {
+        console.log('PDB validation: found ATOM/HETATM records');
         return true;
       }
       
       // Look for coordinate patterns as a fallback
       const lines = content.split(/\r?\n/);
       const coordPattern = /[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+/;
-      return lines.some(line => coordPattern.test(line));
+      const hasCoords = lines.some(line => coordPattern.test(line));
+      console.log('PDB validation: coordinate pattern found:', hasCoords);
+      return hasCoords;
     
     case 'cif':
       // Very basic check for CIF files
-      return content.includes('_') && (
+      const hasCifMarkers = content.includes('_') && (
         content.includes('loop_') || 
         content.includes('data_') || 
         content.includes('_atom')
       );
+      console.log('CIF validation result:', hasCifMarkers);
+      return hasCifMarkers;
     
     case 'mol':
       // Basic check for MOL files
       if (content.includes('V2000') || content.includes('V3000')) {
+        console.log('MOL validation: found version marker');
         return true;
       }
       
@@ -123,15 +144,21 @@ export const validateFileContent = (content: string, format: FileFormat): boolea
       if (molLines.length > 3) {
         // MOL files typically have a counts line (line 4) with atom and bond counts
         const countLine = molLines[3].trim();
-        return /^\s*\d+\s+\d+/.test(countLine);
+        const hasCountLine = /^\s*\d+\s+\d+/.test(countLine);
+        console.log('MOL validation: count line found:', hasCountLine);
+        return hasCountLine;
       }
+      console.log('MOL validation failed: insufficient lines');
       return false;
     
     case 'mol2':
       // Basic check for MOL2 files
-      return content.includes('@<TRIPOS>');
+      const hasMol2Marker = content.includes('@<TRIPOS>');
+      console.log('MOL2 validation result:', hasMol2Marker);
+      return hasMol2Marker;
     
     default:
+      console.log('Unknown format, validation failed');
       return false;
   }
 };
@@ -145,6 +172,7 @@ export const isPdbFile = async (file: any): Promise<boolean> => {
   // Check file extension
   const extension = file.name?.split('.').pop()?.toLowerCase();
   if (extension !== 'pdb') {
+    console.log('Not a PDB file based on extension:', extension);
     return false;
   }
   
@@ -171,17 +199,22 @@ export const isPdbFile = async (file: any): Promise<boolean> => {
         const FileSystem = require('expo-file-system');
         content = await FileSystem.readAsStringAsync(file.uri);
       } else {
+        console.log('No URI found in file object');
         return false;
       }
     }
     
+    console.log('Checking PDB file content, length:', content.length);
     const format = detectFileFormat(content, file.name);
     
     if (format !== 'pdb') {
+      console.log('File content does not match PDB format, detected:', format);
       return false;
     }
     
-    return validateFileContent(content, 'pdb');
+    const isValid = validateFileContent(content, 'pdb');
+    console.log('PDB validation result:', isValid);
+    return isValid;
   } catch (error) {
     console.error('Error validating PDB file:', error);
     return false;
