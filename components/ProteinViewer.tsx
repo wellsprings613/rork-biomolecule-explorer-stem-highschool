@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Platform, Pressable } from 'react-native';
 import { useProteinStore } from '@/store/proteinStore';
 import { colors } from '@/constants/colors';
 import { WebView } from 'react-native-webview';
+import { RotateCcw } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 
 // Sample PDB data for testing when no protein is loaded
 const SAMPLE_PDB = `HEADER    HYDROLASE                               23-FEB-81   1EST
@@ -38,17 +40,34 @@ ATOM     19  CD1 LEU A   3      26.402  28.454  37.683  1.00 12.11           C
 ATOM     20  CD2 LEU A   3      26.328  28.553  35.174  1.00 11.95           C  
 END`;
 
-// NGL Viewer HTML template for WebView with improved error handling and debugging
+// Improved NGL Viewer HTML template for WebView with better initialization and error handling
 const nglViewerHTML = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NGL Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NGL Protein Viewer</title>
   <style>
-    body, html { margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%; }
-    #viewport { width: 100%; height: 100%; }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; 
+      width: 100%; 
+      height: 100%; 
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #viewport { 
+      width: 100%; 
+      height: 100%; 
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
     #loading { 
       position: absolute; 
       top: 50%; 
@@ -57,19 +76,24 @@ const nglViewerHTML = `
       font-family: sans-serif;
       font-size: 16px;
       color: #333;
+      z-index: 10;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 20px;
+      border-radius: 10px;
     }
     #error {
       position: absolute;
       top: 10px;
       left: 10px;
       right: 10px;
-      background-color: rgba(255, 82, 82, 0.8);
+      background-color: rgba(255, 82, 82, 0.9);
       color: white;
       padding: 10px;
       border-radius: 5px;
       font-family: sans-serif;
       font-size: 14px;
       display: none;
+      z-index: 20;
     }
     #debug {
       position: absolute;
@@ -85,15 +109,33 @@ const nglViewerHTML = `
       max-height: 100px;
       overflow: auto;
       display: none;
+      z-index: 20;
+    }
+    #reset-view {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      cursor: pointer;
+      z-index: 15;
+      display: none;
+    }
+    #reset-view:hover {
+      background-color: rgba(240, 240, 240, 0.9);
     }
   </style>
+  <!-- Use a specific version of NGL for stability -->
   <script src="https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"></script>
 </head>
 <body>
   <div id="viewport"></div>
-  <div id="loading">Loading viewer...</div>
+  <div id="loading">Loading molecular viewer...</div>
   <div id="error"></div>
   <div id="debug"></div>
+  <button id="reset-view" title="Reset View">Reset View</button>
   
   <script>
     // Debug function
@@ -105,7 +147,7 @@ const nglViewerHTML = `
       
       // Send debug info to React Native
       try {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'debug',
           message: message
         }));
@@ -123,7 +165,7 @@ const nglViewerHTML = `
       
       // Send error to React Native
       try {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'loadError',
           message: message
         }));
@@ -136,16 +178,61 @@ const nglViewerHTML = `
     function hideLoading() {
       document.getElementById('loading').style.display = 'none';
     }
+
+    // Show reset view button
+    function showResetViewButton() {
+      document.getElementById('reset-view').style.display = 'block';
+    }
     
-    // Create NGL Stage object
+    // Create NGL Stage object with improved configuration
     let stage;
+    let currentComponent = null;
+    
     try {
-      stage = new NGL.Stage("viewport", { backgroundColor: "white" });
+      // Initialize NGL Stage with better defaults for mobile
+      stage = new NGL.Stage("viewport", { 
+        backgroundColor: "white",
+        quality: "medium", // Adjust based on device capability
+        impostor: true,    // Use impostors for better performance
+        antialias: true,   // Enable antialiasing for better visuals
+        fogNear: 100,      // Improve depth perception
+        fogFar: 100,
+        clipNear: 0,       // Prevent clipping issues
+        clipFar: 100,
+        clipDist: 10,
+        lightIntensity: 1.0, // Brighter lighting
+        ambientIntensity: 0.2, // Add ambient light
+        hoverTimeout: 0    // Disable hover for better mobile performance
+      });
+      
+      // Configure camera and controls for better interaction
+      stage.viewer.camera.position.z = 50;
+      stage.viewer.camera.lookAt(new NGL.Vector3(0, 0, 0));
+      
+      // Improve mouse/touch controls
+      stage.mouseControls.zoomSpeed = 1.0;
+      stage.mouseControls.rotateSpeed = 1.0;
+      stage.mouseControls.panSpeed = 1.0;
+      
+      // Enable all mouse actions for better interaction
+      stage.mouseControls.enableRotate = true;
+      stage.mouseControls.enableZoom = true;
+      stage.mouseControls.enablePan = true;
+      stage.mouseControls.enableDamping = true;
+      
       hideLoading();
+      showResetViewButton();
+      
+      // Add reset view button handler
+      document.getElementById('reset-view').addEventListener('click', function() {
+        if (stage) {
+          stage.autoView(1000); // Smooth transition to default view
+        }
+      });
       
       // Send ready message to React Native
       try {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'viewerReady',
           message: 'NGL Viewer is ready'
         }));
@@ -156,8 +243,13 @@ const nglViewerHTML = `
       showError('Failed to initialize NGL Viewer: ' + e.message);
     }
     
-    // Helper function to apply representation and color scheme
+    // Helper function to apply representation and color scheme with improved settings
     function applyRepresentation(component, representation, colorScheme) {
+      if (!component) return;
+      
+      // Store current component for later reference
+      currentComponent = component;
+      
       // Remove existing representations
       component.removeAllRepresentations();
       
@@ -178,53 +270,82 @@ const nglViewerHTML = `
           component.addRepresentation('cartoon', {
             color: 'sstruc',
             aspectRatio: 3.0,
-            scale: 1.5
+            scale: 1.5,
+            quality: 'medium'
           });
           return;
         default:
           colorSchemeParams = { color: 'chainid' };
       }
       
-      // Apply representation
+      // Apply representation with improved settings
       switch (representation) {
         case 'cartoon':
           component.addRepresentation('cartoon', {
             ...colorSchemeParams,
             aspectRatio: 3.0,
-            scale: 1.5
+            scale: 1.5,
+            quality: 'medium',
+            smoothSheet: true
           });
           break;
         case 'ball-and-stick':
           component.addRepresentation('ball+stick', {
             ...colorSchemeParams,
             multipleBond: true,
-            scale: 0.75
+            scale: 0.75,
+            bondScale: 0.4,
+            bondSpacing: 1.0,
+            quality: 'medium'
           });
           break;
         case 'space-filling':
           component.addRepresentation('spacefill', {
             ...colorSchemeParams,
-            scale: 0.8
+            scale: 0.8,
+            quality: 'medium'
           });
           break;
         case 'ribbon':
           component.addRepresentation('ribbon', {
             ...colorSchemeParams,
-            scale: 1.0
+            scale: 1.0,
+            opacity: 0.9,
+            quality: 'medium'
           });
           break;
         default:
-          component.addRepresentation('cartoon', colorSchemeParams);
+          // Fallback to licorice representation if others fail
+          try {
+            component.addRepresentation('cartoon', {
+              ...colorSchemeParams,
+              quality: 'low'
+            });
+          } catch (e) {
+            debug('Falling back to licorice representation');
+            component.addRepresentation('licorice', {
+              ...colorSchemeParams,
+              quality: 'low'
+            });
+          }
       }
       
       // Add labels for binding sites if they exist
       if (representation !== 'space-filling') {
-        component.addRepresentation('ball+stick', {
-          sele: 'ligand',
-          scale: 0.6,
-          color: 'element'
-        });
+        try {
+          component.addRepresentation('ball+stick', {
+            sele: 'ligand',
+            scale: 0.6,
+            color: 'element',
+            quality: 'medium'
+          });
+        } catch (e) {
+          debug('No ligands found or error adding ligand representation');
+        }
       }
+      
+      // Ensure proper view
+      stage.autoView(1000);
     }
     
     // Load a sample structure for testing
@@ -233,6 +354,7 @@ const nglViewerHTML = `
       if (!stage) return;
       
       stage.removeAllComponents();
+      currentComponent = null;
       
       try {
         // Load a simple PDB structure
@@ -249,20 +371,40 @@ ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C
 ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  
 ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  
 END\`
-        ], {type: 'text/plain'}), { ext: 'pdb', defaultRepresentation: true })
+        ], {type: 'text/plain'}), { ext: 'pdb' })
           .then(function(component) {
-            stage.autoView();
+            currentComponent = component;
+            applyRepresentation(component, 'cartoon', 'structure');
+            stage.autoView(1000);
             debug('Sample structure loaded successfully');
+            
+            // Send success message
+            window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'loadSuccess',
+              message: 'Sample structure loaded successfully'
+            }));
           })
           .catch(function(error) {
             showError('Failed to load sample structure: ' + error.message);
+            
+            // Try an even simpler fallback
+            try {
+              stage.loadFile("rcsb://1crn").then(function(o) {
+                currentComponent = o;
+                o.addRepresentation("licorice");
+                stage.autoView(1000);
+                debug('Fallback structure loaded');
+              });
+            } catch (e) {
+              showError('All structure loading attempts failed');
+            }
           });
       } catch (e) {
         showError('Error in loadSampleStructure: ' + e.message);
       }
     }
     
-    // Handle messages from React Native
+    // Handle messages from React Native with improved error handling
     window.addEventListener('message', function(event) {
       try {
         const data = JSON.parse(event.data);
@@ -271,6 +413,10 @@ END\`
         if (data.type === 'loadPDB') {
           // Clear any existing structures
           stage.removeAllComponents();
+          currentComponent = null;
+          
+          // Show loading indicator
+          document.getElementById('loading').style.display = 'block';
           
           // Load PDB data
           const format = data.format || 'pdb';
@@ -278,19 +424,36 @@ END\`
           
           debug('Loading structure: format=' + format + ', ext=' + ext + ', content length=' + data.content.length);
           
-          stage.loadFile(new Blob([data.content], {type: 'text/plain'}), { 
-            ext: ext, 
-            defaultRepresentation: false 
-          })
+          // Create a proper blob with the correct MIME type
+          const blob = new Blob([data.content], {
+            type: format === 'pdb' ? 'chemical/x-pdb' : 
+                 (format === 'cif' ? 'chemical/x-cif' : 'chemical/x-mol')
+          });
+          
+          // Load with better error handling and timeout
+          const loadPromise = stage.loadFile(blob, { 
+            ext: ext,
+            defaultRepresentation: false
+          });
+          
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Loading timed out after 15 seconds')), 15000);
+          });
+          
+          Promise.race([loadPromise, timeoutPromise])
             .then(function(component) {
+              // Hide loading indicator
+              hideLoading();
+              
               // Apply representation based on settings
               applyRepresentation(component, data.representation, data.colorScheme);
               
-              // Auto zoom to fit the structure
-              stage.autoView();
+              // Auto zoom to fit the structure with animation
+              stage.autoView(1000);
               
               // Send success message back to React Native
-              window.ReactNativeWebView.postMessage(JSON.stringify({
+              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'loadSuccess',
                 message: 'Structure loaded successfully'
               }));
@@ -298,32 +461,55 @@ END\`
               debug('Structure loaded successfully');
             })
             .catch(function(error) {
+              hideLoading();
               showError('Failed to load structure: ' + error.message);
-              // Try to load sample structure as fallback
-              loadSampleStructure();
+              
+              // Try alternative loading method
+              debug('Trying alternative loading method...');
+              
+              try {
+                // Try loading as string
+                stage.loadFile(new Blob([data.content], {type: 'text/plain'}), { 
+                  ext: ext,
+                  defaultRepresentation: false
+                }).then(function(component) {
+                  applyRepresentation(component, 'ball-and-stick', 'element'); // Fallback to simpler representation
+                  stage.autoView(1000);
+                  debug('Structure loaded with alternative method');
+                }).catch(function() {
+                  // If all else fails, load sample structure
+                  debug('All loading attempts failed, loading sample structure');
+                  loadSampleStructure();
+                });
+              } catch (e) {
+                loadSampleStructure();
+              }
             });
         } else if (data.type === 'updateRepresentation') {
           // Update representation for all components
-          stage.eachComponent(function(component) {
-            applyRepresentation(component, data.representation, data.colorScheme);
-          });
-          
-          debug('Updated representation: ' + data.representation + ', colorScheme: ' + data.colorScheme);
+          if (currentComponent) {
+            applyRepresentation(currentComponent, data.representation, data.colorScheme);
+            debug('Updated representation: ' + data.representation + ', colorScheme: ' + data.colorScheme);
+          } else {
+            debug('No component to update representation');
+          }
         } else if (data.type === 'updateBackground') {
           // Update background color
           stage.setParameters({ backgroundColor: data.color });
           debug('Updated background color: ' + data.color);
         } else if (data.type === 'resetView') {
-          // Reset view to default
-          stage.autoView();
+          // Reset view to default with animation
+          stage.autoView(1000);
           debug('Reset view');
         } else if (data.type === 'zoomIn') {
-          // Zoom in
-          stage.viewer.controls.zoom(0.5);
+          // Zoom in with better control
+          stage.viewer.controls.dollyIn(1.2);
+          stage.viewer.requestRender();
           debug('Zoom in');
         } else if (data.type === 'zoomOut') {
-          // Zoom out
-          stage.viewer.controls.zoom(-0.5);
+          // Zoom out with better control
+          stage.viewer.controls.dollyOut(1.2);
+          stage.viewer.requestRender();
           debug('Zoom out');
         } else if (data.type === 'move') {
           // Toggle mouse mode
@@ -344,7 +530,11 @@ END\`
     
     // Handle window resize
     window.addEventListener('resize', function() {
-      if (stage) stage.handleResize();
+      if (stage) {
+        stage.handleResize();
+        // Re-center view after resize
+        setTimeout(() => stage.autoView(0), 100);
+      }
     });
     
     // Initial setup - load sample structure if no data is provided within 2 seconds
@@ -357,6 +547,42 @@ END\`
         }
       }, 2000);
     }
+    
+    // Prevent context menu to improve mobile experience
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+    
+    // Prevent default touch behavior to improve mobile experience
+    document.addEventListener('touchmove', function(e) {
+      if (e.target.id === 'viewport') {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    
+    // Ensure WebGL context is not lost
+    window.addEventListener('webglcontextlost', function(e) {
+      debug('WebGL context lost, attempting to restore');
+      e.preventDefault();
+      
+      // Notify React Native
+      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'webglContextLost',
+        message: 'WebGL context was lost, attempting to restore'
+      }));
+      
+      // Try to restore after a short delay
+      setTimeout(function() {
+        if (stage) {
+          try {
+            stage.viewer.requestRender();
+            debug('WebGL context restored');
+          } catch (e) {
+            showError('Failed to restore WebGL context: ' + e.message);
+          }
+        }
+      }, 1000);
+    }, false);
   </script>
 </body>
 </html>
@@ -384,7 +610,7 @@ export default function ProteinViewer() {
     return () => subscription.remove();
   }, []);
 
-  // Handle messages from the WebView
+  // Handle messages from the WebView with improved error handling
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -405,6 +631,14 @@ export default function ProteinViewer() {
         case 'debug':
           console.log('Debug:', data.message);
           setDebugInfo(data.message);
+          break;
+        case 'webglContextLost':
+          console.error('WebGL context lost:', data.message);
+          setViewerError('WebGL context was lost. Please reload the viewer.');
+          // Try to reload the WebView
+          if (webViewRef.current) {
+            webViewRef.current.reload();
+          }
           break;
         default:
           console.log('Unhandled message type:', data.type);
@@ -444,7 +678,7 @@ export default function ProteinViewer() {
     }));
   }, [viewerSettings, viewerReady]);
 
-  // Load protein structure
+  // Load protein structure with improved error handling
   const loadProteinStructure = () => {
     if (!currentProtein || !viewerReady || !webViewRef.current) return;
 
@@ -468,6 +702,19 @@ export default function ProteinViewer() {
     }));
   };
 
+  // Reset camera view
+  const resetView = () => {
+    if (!viewerReady || !webViewRef.current) return;
+    
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    webViewRef.current.postMessage(JSON.stringify({
+      type: 'resetView'
+    }));
+  };
+
   // Generate PDB content from protein structure
   const generatePDBContent = (protein: any): string => {
     if (!protein) return SAMPLE_PDB;
@@ -481,8 +728,10 @@ export default function ProteinViewer() {
     let pdbContent = '';
     
     // Add header
-    pdbContent += `HEADER    ${protein.name || 'UNKNOWN'}\n`;
-    pdbContent += `TITLE     ${protein.description || 'No description'}\n`;
+    pdbContent += `HEADER    ${protein.name || 'UNKNOWN'}
+`;
+    pdbContent += `TITLE     ${protein.description || 'No description'}
+`;
     
     // Add atoms
     if (protein.atoms && protein.atoms.length > 0) {
@@ -497,7 +746,8 @@ export default function ProteinViewer() {
         const y = (atom.y || 0).toFixed(3).padStart(8, ' ');
         const z = (atom.z || 0).toFixed(3).padStart(8, ' ');
         
-        const atomLine = `ATOM  ${atomId.toString().padStart(5, ' ')} ${atomName} ${resName} ${chainId}${resNum.toString().padStart(4, ' ')}    ${x} ${y} ${z}  1.00  0.00           ${atom.element.padEnd(2, ' ')}\n`;
+        const atomLine = `ATOM  ${atomId.toString().padStart(5, ' ')} ${atomName} ${resName} ${chainId}${resNum.toString().padStart(4, ' ')}    ${x} ${y} ${z}  1.00  0.00           ${atom.element.padEnd(2, ' ')}
+`;
         pdbContent += atomLine;
       });
     } else {
@@ -506,7 +756,8 @@ export default function ProteinViewer() {
     }
     
     // Add end
-    pdbContent += 'END\n';
+    pdbContent += 'END
+';
     
     return pdbContent;
   };
@@ -523,21 +774,48 @@ export default function ProteinViewer() {
               height: '100%',
               border: 'none',
               backgroundColor: viewerSettings.backgroundColor,
+              zIndex: 1,
             }}
             title="Protein Viewer"
           />
         ) : (
-          // For native, use WebView
+          // For native, use WebView with improved configuration
           <WebView
             ref={webViewRef}
             originWhitelist={['*']}
             source={{ html: nglViewerHTML }}
-            style={{ backgroundColor: viewerSettings.backgroundColor }}
+            style={styles.webView}
             onMessage={handleWebViewMessage}
             javaScriptEnabled={true}
             domStorageEnabled={true}
+            allowFileAccess={true}
+            allowUniversalAccessFromFileURLs={true}
+            allowFileAccessFromFileURLs={true}
+            mixedContentMode="always"
+            onError={(e) => setViewerError(`WebView error: ${e.nativeEvent.description}`)}
+            renderError={(errorName) => (
+              <View style={styles.webViewError}>
+                <Text style={styles.webViewErrorText}>
+                  Failed to load viewer: {errorName}
+                </Text>
+                <Pressable 
+                  style={styles.resetButton}
+                  onPress={() => webViewRef.current?.reload()}
+                >
+                  <Text style={styles.resetButtonText}>Reload Viewer</Text>
+                </Pressable>
+              </View>
+            )}
           />
         )}
+        
+        {/* Reset view button overlay */}
+        <Pressable 
+          style={styles.resetViewButton}
+          onPress={resetView}
+        >
+          <RotateCcw size={20} color={colors.gray[700]} />
+        </Pressable>
         
         {/* Overlay with annotation information */}
         <View style={styles.annotationOverlay}>
@@ -596,14 +874,59 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  webView: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  webViewError: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: colors.gray[100],
+  },
+  webViewErrorText: {
+    fontSize: 16,
+    color: colors.error,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  resetButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  resetButtonText: {
+    color: colors.white,
+    fontWeight: '600',
+  },
+  resetViewButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   annotationOverlay: {
     position: 'absolute',
     top: 16,
     left: 16,
-    right: 16,
+    right: 70, // Make room for reset button
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     borderRadius: 8,
     padding: 12,
+    zIndex: 5,
   },
   annotationText: {
     fontSize: 16,

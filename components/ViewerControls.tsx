@@ -111,6 +111,18 @@ export default function ViewerControls() {
                     Haptics.selectionAsync();
                   }
                   updateViewerSettings({ representation: rep.id });
+                  
+                  // Also send direct message to update immediately
+                  if (Platform.OS === 'web') {
+                    const iframe = document.querySelector('iframe');
+                    if (iframe && iframe.contentWindow) {
+                      iframe.contentWindow.postMessage(JSON.stringify({
+                        type: 'updateRepresentation',
+                        representation: rep.id,
+                        colorScheme: viewerSettings.colorScheme
+                      }), '*');
+                    }
+                  }
                 }}
               >
                 <Text 
@@ -142,6 +154,18 @@ export default function ViewerControls() {
                     Haptics.selectionAsync();
                   }
                   updateViewerSettings({ colorScheme: scheme.id });
+                  
+                  // Also send direct message to update immediately
+                  if (Platform.OS === 'web') {
+                    const iframe = document.querySelector('iframe');
+                    if (iframe && iframe.contentWindow) {
+                      iframe.contentWindow.postMessage(JSON.stringify({
+                        type: 'updateRepresentation',
+                        representation: viewerSettings.representation,
+                        colorScheme: scheme.id
+                      }), '*');
+                    }
+                  }
                 }}
               >
                 <Text 

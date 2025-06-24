@@ -74,16 +74,30 @@ export default function FileUploader() {
           // Generate summary
           const summary = await generateProteinSummary(protein);
           setProteinSummary(summary);
+          
+          // Provide success feedback
+          if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
         } else {
           setError('Failed to parse file. Please check the file format.');
+          if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          }
         }
       } catch (error: any) {
         console.error('Error details:', error);
         setError(error.message || 'Failed to parse file.');
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
       }
     } catch (error) {
       console.error('Error processing file:', error);
       setError('An error occurred while processing the file.');
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setLoading(false);
     }
@@ -159,6 +173,68 @@ export default function FileUploader() {
     }
   };
 
+  // Load sample PDB file
+  const loadSamplePDB = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Hemoglobin (4HHB) - a well-known protein structure
+      const samplePdbUrl = 'https://files.rcsb.org/download/4HHB.pdb';
+      
+      let fileContent: string;
+      
+      if (Platform.OS === 'web') {
+        // Fetch the file on web
+        const response = await fetch(samplePdbUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch sample PDB: ${response.statusText}`);
+        }
+        fileContent = await response.text();
+      } else {
+        // Download the file on native
+        const downloadResult = await FileSystem.downloadAsync(
+          samplePdbUrl,
+          FileSystem.cacheDirectory + '4HHB.pdb'
+        );
+        
+        if (downloadResult.status !== 200) {
+          throw new Error(`Failed to download sample PDB: ${downloadResult.status}`);
+        }
+        
+        fileContent = await FileSystem.readAsStringAsync(downloadResult.uri);
+      }
+      
+      // Parse the file content
+      const protein = await parseProteinFile(fileContent, '4HHB.pdb');
+      
+      if (protein) {
+        // Store the raw content for rendering
+        protein.rawContent = fileContent;
+        
+        setCurrentProtein(protein);
+        setDetectedFormat('pdb');
+        setFileName('4HHB.pdb (Hemoglobin)');
+        
+        // Generate summary
+        const summary = await generateProteinSummary(protein);
+        setProteinSummary(summary);
+        
+        // Provide success feedback
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } else {
+        setError('Failed to parse sample PDB file.');
+      }
+    } catch (error: any) {
+      console.error('Error loading sample PDB:', error);
+      setError(error.message || 'Failed to load sample PDB file.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {Platform.OS === 'web' ? (
@@ -222,6 +298,18 @@ export default function FileUploader() {
           Upload molecular structure files for 3D visualization
         </Text>
       </View>
+      
+      <Pressable 
+        style={({ pressed }) => [
+          styles.sampleButton,
+          pressed && styles.sampleButtonPressed
+        ]}
+        onPress={loadSamplePDB}
+      >
+        <Text style={styles.sampleButtonText}>
+          Load Sample (Hemoglobin)
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -318,5 +406,19 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     textAlign: 'center',
     marginTop: 2,
+  },
+  sampleButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: colors.gray[200],
+    borderRadius: 6,
+  },
+  sampleButtonPressed: {
+    backgroundColor: colors.gray[300],
+  },
+  sampleButtonText: {
+    fontSize: 14,
+    color: colors.gray[800],
   },
 });

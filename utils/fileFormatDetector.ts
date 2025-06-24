@@ -13,7 +13,7 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
   const lines = normalizedContent.split(/\r?\n/);
   const firstLine = lines[0]?.trim() || '';
   
-  // PDB format detection
+  // PDB format detection - more robust checks
   if (
     (firstLine.startsWith('HEADER') || 
      firstLine.startsWith('TITLE') || 
@@ -26,29 +26,37 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
     return 'pdb';
   }
   
-  // mmCIF format detection
+  // Additional PDB detection for files without proper headers
+  if (lines.some(line => /^ATOM\s+\d+\s+\w+\s+\w+\s+[A-Z]\s+\d+/.test(line))) {
+    return 'pdb';
+  }
+  
+  // mmCIF format detection - improved
   if (
     firstLine.startsWith('data_') || 
     normalizedContent.includes('_atom_site.') ||
-    normalizedContent.includes('loop_') ||
+    (normalizedContent.includes('loop_') && 
+     normalizedContent.includes('_atom_site.')) ||
     normalizedContent.includes('_entry.id') ||
     normalizedContent.includes('_chem_comp.')
   ) {
     return 'cif';
   }
   
-  // MOL format detection
+  // MOL format detection - improved
   if (
     normalizedContent.includes('V2000') || 
-    normalizedContent.includes('V3000')
+    normalizedContent.includes('V3000') ||
+    (lines.length > 3 && lines[3].trim().match(/^\s*\d+\s+\d+\s+\d+/))
   ) {
     return 'mol';
   }
   
-  // MOL2 format detection
+  // MOL2 format detection - improved
   if (
     normalizedContent.includes('@<TRIPOS>MOLECULE') || 
-    normalizedContent.includes('@<TRIPOS>ATOM')
+    normalizedContent.includes('@<TRIPOS>ATOM') ||
+    normalizedContent.includes('@<TRIPOS>')
   ) {
     return 'mol2';
   }
@@ -62,8 +70,11 @@ export const detectFileFormat = (content: string, fileName?: string): FileFormat
     if (extension === 'mol2') return 'mol2';
   }
   
-  // Check for PDB-like content even without proper headers
-  if (lines.some(line => line.match(/^ATOM\s+\d+\s+\w+\s+\w+\s+[A-Z]\s+\d+/))) {
+  // Last resort: check for coordinate-like patterns in the content
+  // This helps with malformed files that still contain valid coordinate data
+  const coordPattern = /[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+/;
+  if (lines.some(line => coordPattern.test(line))) {
+    // If we find coordinate-like patterns, default to PDB as it's most common
     return 'pdb';
   }
   
@@ -83,8 +94,15 @@ export const validateFileContent = (content: string, format: FileFormat): boolea
   // More lenient validation to handle various file formats
   switch (format) {
     case 'pdb':
-      // Check for any ATOM or HETATM records
-      return content.includes('ATOM') || content.includes('HETATM');
+      // Check for any ATOM or HETATM records or coordinate-like patterns
+      if (content.includes('ATOM') || content.includes('HETATM')) {
+        return true;
+      }
+      
+      // Look for coordinate patterns as a fallback
+      const lines = content.split(/\r?\n/);
+      const coordPattern = /[-+]?\d+\.\d+\s+[-+]?\d+\.\d+\s+[-+]?\d+\.\d+/;
+      return lines.some(line => coordPattern.test(line));
     
     case 'cif':
       // Very basic check for CIF files
@@ -96,7 +114,18 @@ export const validateFileContent = (content: string, format: FileFormat): boolea
     
     case 'mol':
       // Basic check for MOL files
-      return content.includes('V2000') || content.includes('V3000');
+      if (content.includes('V2000') || content.includes('V3000')) {
+        return true;
+      }
+      
+      // Check for coordinate blocks
+      const molLines = content.split(/\r?\n/);
+      if (molLines.length > 3) {
+        // MOL files typically have a counts line (line 4) with atom and bond counts
+        const countLine = molLines[3].trim();
+        return /^\s*\d+\s+\d+/.test(countLine);
+      }
+      return false;
     
     case 'mol2':
       // Basic check for MOL2 files
