@@ -44,442 +44,60 @@ END
 // Improved NGL Viewer HTML template for WebView with better initialization and error handling
 const nglViewerHTML = `
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NGL Protein Viewer</title>
-  <style>
-    html, body { 
-      margin: 0; 
-      padding: 0; 
-      overflow: hidden; 
-      width: 100%; 
-      height: 100%; 
-      touch-action: none;
-    }
-    #viewport { 
-      width: 100%; 
-      height: 100%; 
-      position: absolute;
-      top: 0;
-      left: 0;
-    }
-    #loading { 
-      position: absolute; 
-      top: 50%; 
-      left: 50%; 
-      transform: translate(-50%, -50%);
-      font-family: sans-serif;
-      font-size: 16px;
-      color: #333;
-      z-index: 10;
-      background-color: rgba(255, 255, 255, 0.8);
-      padding: 20px;
-      border-radius: 10px;
-    }
-    #error {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      background-color: rgba(255, 82, 82, 0.9);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      font-family: sans-serif;
-      font-size: 14px;
-      display: none;
-      z-index: 20;
-    }
-  </style>
-  <script src="https://unpkg.com/ngl@2.0.0/dist/ngl.js"></script>
-</head>
-<body>
-  <div id="viewport"></div>
-  <div id="loading">Loading molecular viewer...</div>
-  <div id="error"></div>
-  
-  <script>
-    // Debug function
-    function debug(message) {
-      console.log("[NGL Debug]:", message);
-      
-      // Send debug info to React Native
-      try {
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'debug',
-          message: message
-        }));
-      } catch (e) {
-        console.error('Failed to send debug message:', e);
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://unpkg.com/ngl@2.0.0-dev.40/dist/ngl.js"></script>
+  </head>
+  <body style="margin:0; overflow:hidden;">
+    <div id="viewport" style="width:100vw; height:100vh;"></div>
+    <script>
+      const stage = new NGL.Stage("viewport", { backgroundColor: "white" });
+
+      function loadStructure(pdb, format = 'pdb') {
+        stage.removeAllComponents();
+        stage.loadFile(new Blob([pdb], { type: 'text/plain' }), {
+          ext: format,
+          defaultRepresentation: true
+        }).then(comp => {
+          comp.addRepresentation("cartoon");
+          stage.autoView();
+        }).catch(e => {
+          console.error("Failed to load structure", e);
+        });
       }
-    }
-    
-    // Show error
-    function showError(message) {
-      const errorEl = document.getElementById('error');
-      errorEl.style.display = 'block';
-      errorEl.textContent = message;
-      console.error("[NGL Error]:", message);
-      
-      // Send error to React Native
-      try {
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'loadError',
-          message: message
-        }));
-      } catch (e) {
-        console.error('Failed to send error message:', e);
-      }
-    }
-    
-    // Hide loading indicator
-    function hideLoading() {
-      document.getElementById('loading').style.display = 'none';
-    }
-    
-    // Create NGL Stage object
-    let stage;
-    let currentComponent = null;
-    
-    try {
-      debug("Initializing NGL Stage");
-      stage = new NGL.Stage("viewport", { backgroundColor: "white" });
-      debug("NGL Stage initialized successfully");
-      hideLoading();
-      
-      // Send ready message to React Native
-      try {
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'viewerReady',
-          message: 'NGL Viewer is ready'
-        }));
-      } catch (e) {
-        debug('ReactNativeWebView not available: ' + e.message);
-      }
-      
-      // Handle window resize
-      window.addEventListener('resize', function() {
-        if (stage) {
-          debug("Window resized, handling resize");
-          stage.handleResize();
+
+      window.addEventListener("message", function(event) {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "loadPDB") {
+            loadStructure(msg.content, msg.format);
+          } else if (msg.type === "resetView") {
+            stage.autoView();
+          } else if (msg.type === "toggleRotation") {
+            stage.setSpin(!stage.getSpin());
+          } else if (msg.type === "updateRepresentation") {
+            stage.removeAllComponents();
+            stage.loadFile(new Blob([msg.content], { type: 'text/plain' }), {
+              ext: msg.format
+            }).then(comp => {
+              comp.addRepresentation(msg.representation || 'cartoon', {
+                colorScheme: msg.colorScheme || 'element'
+              });
+              stage.autoView();
+            });
+          }
+        } catch (e) {
+          console.error("PostMessage error:", e);
         }
       });
-      
-      // Initial setup - load sample structure if no data is provided within 2 seconds
-      setTimeout(function() {
-        if (stage.compList.length === 0) {
-          debug('No structure loaded after timeout, loading sample structure');
-          loadSampleStructure();
-        }
-      }, 2000);
-      
-    } catch (e) {
-      showError('Failed to initialize NGL Viewer: ' + e.message);
-      console.error("NGL initialization error:", e);
-    }
-    
-    // Helper function to apply representation and color scheme
-    function applyRepresentation(component, representation, colorScheme) {
-      if (!component) {
-        debug("Cannot apply representation: component is null");
-        return;
-      }
-      
-      debug("Applying representation: " + representation + ", colorScheme: " + colorScheme);
-      
-      // Store current component for later reference
-      currentComponent = component;
-      
-      // Remove existing representations
-      component.removeAllRepresentations();
-      
-      // Apply color scheme
-      let colorSchemeParams = {};
-      switch (colorScheme) {
-        case 'chain':
-          colorSchemeParams = { color: 'chainid' };
-          break;
-        case 'residue':
-          colorSchemeParams = { color: 'resname' };
-          break;
-        case 'structure':
-          colorSchemeParams = { color: 'sstruc' };
-          break;
-        case 'custom':
-          // Custom color scheme for different structural elements
-          component.addRepresentation('cartoon', {
-            color: 'sstruc',
-            aspectRatio: 3.0,
-            scale: 1.5
-          });
-          return;
-        default:
-          colorSchemeParams = { color: 'chainid' };
-      }
-      
-      // Apply representation
-      switch (representation) {
-        case 'cartoon':
-          component.addRepresentation('cartoon', {
-            ...colorSchemeParams,
-            aspectRatio: 3.0,
-            scale: 1.5
-          });
-          break;
-        case 'ball-and-stick':
-          component.addRepresentation('ball+stick', {
-            ...colorSchemeParams,
-            multipleBond: true,
-            scale: 0.75
-          });
-          break;
-        case 'space-filling':
-          component.addRepresentation('spacefill', {
-            ...colorSchemeParams,
-            scale: 0.8
-          });
-          break;
-        case 'ribbon':
-          component.addRepresentation('ribbon', {
-            ...colorSchemeParams,
-            scale: 1.0,
-            opacity: 0.9
-          });
-          break;
-        default:
-          component.addRepresentation('cartoon', colorSchemeParams);
-      }
-      
-      // Ensure proper view
-      stage.autoView();
-    }
-    
-    // Load a sample structure for testing
-    function loadSampleStructure() {
-      debug('Loading sample structure');
-      if (!stage) {
-        showError("Cannot load sample: NGL Stage not initialized");
-        return;
-      }
-      
-      stage.removeAllComponents();
-      currentComponent = null;
-      
-      try {
-        // Try to load a standard PDB from RCSB
-        debug("Attempting to load 1MBN from RCSB");
-        stage.loadFile("rcsb://1MBN", { defaultRepresentation: false })
-          .then(function(component) {
-            debug("Successfully loaded 1MBN");
-            currentComponent = component;
-            applyRepresentation(component, 'cartoon', 'structure');
-            
-            // Send success message
-            window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'loadSuccess',
-              message: 'Sample structure loaded successfully'
-            }));
-          })
-          .catch(function(error) {
-            debug('Failed to load 1MBN, trying fallback: ' + error.message);
-            
-            // Try loading a simple PDB structure
-            stage.loadFile(new Blob([
-              "HEADER    SAMPLE STRUCTURE
-" +
-              "ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  
-" +
-              "ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  
-" +
-              "ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  
-" +
-              "ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  
-" +
-              "ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  
-" +
-              "ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  
-" +
-              "ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  
-" +
-              "ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  
-" +
-              "ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  
-" +
-              "ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  
-" +
-              "END
-"
-            ], {type: 'text/plain'}), { ext: 'pdb', defaultRepresentation: false })
-              .then(function(component) {
-                debug("Successfully loaded fallback structure");
-                currentComponent = component;
-                applyRepresentation(component, 'cartoon', 'structure');
-                
-                // Send success message
-                window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'loadSuccess',
-                  message: 'Sample structure loaded successfully'
-                }));
-              })
-              .catch(function(error) {
-                showError('Failed to load sample structure: ' + error.message);
-              });
-          });
-      } catch (e) {
-        showError('Error in loadSampleStructure: ' + e.message);
-      }
-    }
-    
-    // Handle messages from React Native
-    window.addEventListener('message', function(event) {
-      try {
-        const data = JSON.parse(event.data);
-        debug('Received message: ' + data.type);
-        
-        if (data.type === 'loadPDB') {
-          // Clear any existing structures
-          if (!stage) {
-            showError("Cannot load PDB: NGL Stage not initialized");
-            return;
-          }
-          
-          stage.removeAllComponents();
-          currentComponent = null;
-          
-          // Show loading indicator
-          document.getElementById('loading').style.display = 'block';
-          
-          // Load PDB data
-          const format = data.format || 'pdb';
-          const ext = format === 'cif' ? 'cif' : (format === 'mol2' ? 'mol2' : 'pdb');
-          
-          debug('Loading structure: format=' + format + ', ext=' + ext + ', content length=' + data.content.length);
-          
-          // Create a blob with the content
-          const blob = new Blob([data.content], {
-            type: format === 'pdb' ? 'chemical/x-pdb' : 
-                 (format === 'cif' ? 'chemical/x-cif' : 'chemical/x-mol')
-          });
-          
-          debug("Created blob, now loading file");
-          
-          // Load the file
-          stage.loadFile(blob, { 
-            ext: ext,
-            defaultRepresentation: false
-          })
-            .then(function(component) {
-              // Hide loading indicator
-              hideLoading();
-              
-              debug("Structure loaded successfully, applying representation");
-              
-              // Apply representation based on settings
-              applyRepresentation(component, data.representation || 'cartoon', data.colorScheme || 'structure');
-              
-              // Send success message back to React Native
-              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'loadSuccess',
-                message: 'Structure loaded successfully'
-              }));
-              
-              debug('Structure loaded and displayed successfully');
-            })
-            .catch(function(error) {
-              hideLoading();
-              debug('Failed to load structure: ' + error.message + '. Trying alternative loading method...');
-              
-              // Try alternative loading method
-              try {
-                // Try loading as string
-                debug("Attempting to load as plain text");
-                stage.loadFile(new Blob([data.content], {type: 'text/plain'}), { 
-                  ext: ext,
-                  defaultRepresentation: false
-                }).then(function(component) {
-                  debug("Alternative loading method succeeded");
-                  applyRepresentation(component, 'ball-and-stick', 'element'); // Fallback to simpler representation
-                  
-                  // Send success message
-                  window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'loadSuccess',
-                    message: 'Structure loaded with alternative method'
-                  }));
-                }).catch(function(error) {
-                  debug("Alternative loading method failed: " + error.message);
-                  showError('Failed to load structure: ' + error.message);
-                });
-              } catch (e) {
-                debug("Error in alternative loading method: " + e.message);
-                showError('Failed to load structure: ' + e.message);
-              }
-            });
-        } else if (data.type === 'updateRepresentation') {
-          // Update representation for all components
-          if (currentComponent) {
-            applyRepresentation(currentComponent, data.representation, data.colorScheme);
-            debug('Updated representation: ' + data.representation + ', colorScheme: ' + data.colorScheme);
-          } else {
-            debug('No component to update representation');
-          }
-        } else if (data.type === 'updateBackground') {
-          // Update background color
-          if (stage) {
-            stage.setParameters({ backgroundColor: data.color });
-            debug('Updated background color: ' + data.color);
-          }
-        } else if (data.type === 'resetView') {
-          // Reset view to default
-          if (stage) {
-            stage.autoView();
-            debug('Reset view');
-          }
-        } else if (data.type === 'loadSample') {
-          // Load sample structure
-          loadSampleStructure();
-        } else if (data.type === 'zoomIn') {
-          if (stage && stage.viewer) {
-            stage.viewer.zoom(1.2);
-            debug('Zoomed in');
-          }
-        } else if (data.type === 'zoomOut') {
-          if (stage && stage.viewer) {
-            stage.viewer.zoom(0.8);
-            debug('Zoomed out');
-          }
-        } else if (data.type === 'toggleRotation') {
-          if (stage) {
-            const currentSpin = stage.getParameters().spin;
-            stage.setParameters({ spin: !currentSpin });
-            debug(currentSpin ? 'Stopped rotation' : 'Started rotation');
-          }
-        } else if (data.type === 'fullscreen') {
-          if (document.documentElement) {
-            if (!document.fullscreenElement) {
-              document.documentElement.requestFullscreen().catch(err => {
-                debug('Failed to enter fullscreen: ' + err.message);
-              });
-              debug('Entered fullscreen');
-            } else {
-              if (document.exitFullscreen) {
-                document.exitFullscreen().catch(err => {
-                  debug('Failed to exit fullscreen: ' + err.message);
-                });
-                debug('Exited fullscreen');
-              }
-            }
-          }
-        }
-      } catch (error) {
-        showError('Error processing message: ' + error.message);
-      }
-    });
-  </script>
-</body>
+
+      // Fallback display
+      loadStructure("HEADER\\nSAMPLE\\nEND", "pdb");
+    </script>
+  </body>
 </html>
-`;
+`.trim();
 
 export default function ProteinViewer() {
   const { currentProtein, annotations, viewerSettings } = useProteinStore();
