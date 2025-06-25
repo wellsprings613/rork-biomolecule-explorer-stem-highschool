@@ -964,8 +964,10 @@ export default function ProteinViewer() {
     let pdbContent = '';
     
     // Add header
-    pdbContent += `HEADER    ${protein.name || 'UNKNOWN'}\n`;
-    pdbContent += `TITLE     ${protein.description || 'No description'}\n`;
+    pdbContent += `HEADER    ${protein.name || 'UNKNOWN'}
+`;
+    pdbContent += `TITLE     ${protein.description || 'No description'}
+`;
     
     // Add atoms
     if (protein.atoms && protein.atoms.length > 0) {
@@ -980,7 +982,8 @@ export default function ProteinViewer() {
         const y = (atom.y || 0).toFixed(3).padStart(8, ' ');
         const z = (atom.z || 0).toFixed(3).padStart(8, ' ');
         
-        const atomLine = `ATOM  ${atomId.toString().padStart(5, ' ')} ${atomName} ${resName} ${chainId}${resNum.toString().padStart(4, ' ')}    ${x} ${y} ${z}  1.00  0.00           ${atom.element.padEnd(2, ' ')}\n`;
+        const atomLine = `ATOM  ${atomId.toString().padStart(5, ' ')} ${atomName} ${resName} ${chainId}${resNum.toString().padStart(4, ' ')}    ${x} ${y} ${z}  1.00  0.00           ${atom.element.padEnd(2, ' ')}
+`;
         pdbContent += atomLine;
       });
     } else {
@@ -989,7 +992,8 @@ export default function ProteinViewer() {
     }
     
     // Add end
-    pdbContent += 'END\n';
+    pdbContent += 'END
+';
     
     return pdbContent;
   };
