@@ -92,7 +92,7 @@ const nglViewerHTML = `
       z-index: 20;
     }
   </style>
-  <script src="https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"></script>
+  <script src="https://unpkg.com/ngl@2.0.0/dist/ngl.js"></script>
 </head>
 <body>
   <div id="viewport"></div>
@@ -297,7 +297,7 @@ const nglViewerHTML = `
               "ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  \n" +
               "ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  \n" +
               "ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  \n" +
-              "END"
+              "END\n"
             ], {type: 'text/plain'}), { ext: 'pdb', defaultRepresentation: false })
               .then(function(component) {
                 debug("Successfully loaded fallback structure");
