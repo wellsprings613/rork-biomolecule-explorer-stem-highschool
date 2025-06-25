@@ -38,7 +38,8 @@ ATOM     17  CB  LEU A   3      28.035  29.871  36.407  1.00 10.42           C
 ATOM     18  CG  LEU A   3      26.614  29.318  36.453  1.00 11.07           C  
 ATOM     19  CD1 LEU A   3      26.402  28.454  37.683  1.00 12.11           C  
 ATOM     20  CD2 LEU A   3      26.328  28.553  35.174  1.00 11.95           C  
-END`;
+END
+`;
 
 // Improved NGL Viewer HTML template for WebView with better initialization and error handling
 const nglViewerHTML = `
