@@ -91,7 +91,7 @@ const nglViewerHTML = `<!DOCTYPE html>
         }
       });
 
-      // Fallback display (escaped line breaks)
+      // Fallback display
       loadStructure("HEADER SAMPLE END", "pdb");
     </script>
   </body>
