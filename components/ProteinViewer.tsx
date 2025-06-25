@@ -46,7 +46,7 @@ const nglViewerHTML = `
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>NGL Protein Viewer</title>
   <style>
     html, body { 
@@ -56,26 +56,13 @@ const nglViewerHTML = `
       width: 100%; 
       height: 100%; 
       touch-action: none;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-      padding-bottom: env(safe-area-inset-bottom);
-      position: relative;
-      z-index: 0;
     }
     #viewport { 
       width: 100%; 
-      height: 100vh; 
+      height: 100%; 
       position: absolute;
       top: 0;
       left: 0;
-      z-index: 0;
-      touch-action: none;
-    }
-    canvas {
-      width: 100% !important;
-      height: 100% !important;
-      touch-action: none;
     }
     #loading { 
       position: absolute; 
@@ -104,123 +91,17 @@ const nglViewerHTML = `
       display: none;
       z-index: 20;
     }
-    #debug {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 5px;
-      border-radius: 3px;
-      font-family: monospace;
-      font-size: 12px;
-      max-width: 80%;
-      max-height: 100px;
-      overflow: auto;
-      display: none;
-      z-index: 20;
-    }
-    #reset-view {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background-color: rgba(255, 255, 255, 0.8);
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      padding: 8px;
-      cursor: pointer;
-      z-index: 15;
-      display: none;
-    }
-    #reset-view:hover {
-      background-color: rgba(240, 240, 240, 0.9);
-    }
-    #controls {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-      background-color: rgba(255, 255, 255, 0.8);
-      padding: 8px;
-      border-radius: 8px;
-      z-index: 15;
-    }
-    .control-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 20px;
-      background-color: white;
-      border: 1px solid #ccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-    .control-btn:hover {
-      background-color: #f0f0f0;
-    }
-    .control-btn:active {
-      background-color: #e0e0e0;
-    }
-    .control-icon {
-      width: 24px;
-      height: 24px;
-      fill: #333;
-    }
-    .annotation-overlay {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      right: 70px;
-      background-color: rgba(255, 255, 255, 0.8);
-      border-radius: 8px;
-      padding: 12px;
-      z-index: 10;
-    }
   </style>
-  <!-- Use a specific version of NGL for stability -->
   <script src="https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"></script>
 </head>
 <body>
   <div id="viewport"></div>
   <div id="loading">Loading molecular viewer...</div>
   <div id="error"></div>
-  <div id="debug"></div>
-  <button id="reset-view" title="Reset View">Reset View</button>
-  
-  <div id="controls" style="display: none;">
-    <button class="control-btn" id="zoom-in" title="Zoom In">
-      <svg class="control-icon" viewBox="0 0 24 24">
-        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-        <path d="M12 10h-2v2H9v-2H7V9h2V7h1v2h2z"/>
-      </svg>
-    </button>
-    <button class="control-btn" id="zoom-out" title="Zoom Out">
-      <svg class="control-icon" viewBox="0 0 24 24">
-        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-        <path d="M7 9h5v1H7z"/>
-      </svg>
-    </button>
-    <button class="control-btn" id="rotate" title="Toggle Rotation">
-      <svg class="control-icon" viewBox="0 0 24 24">
-        <path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/>
-      </svg>
-    </button>
-    <button class="control-btn" id="fullscreen" title="Toggle Fullscreen">
-      <svg class="control-icon" viewBox="0 0 24 24">
-        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-      </svg>
-    </button>
-  </div>
   
   <script>
     // Debug function
     function debug(message) {
-      const debugEl = document.getElementById('debug');
-      debugEl.style.display = 'block';
-      debugEl.textContent = message;
       console.log("[NGL Debug]:", message);
       
       // Send debug info to React Native
@@ -255,158 +136,50 @@ const nglViewerHTML = `
     // Hide loading indicator
     function hideLoading() {
       document.getElementById('loading').style.display = 'none';
-      document.getElementById('controls').style.display = 'flex';
-    }
-
-    // Show reset view button
-    function showResetViewButton() {
-      document.getElementById('reset-view').style.display = 'block';
     }
     
-    // Create NGL Stage object with improved configuration
+    // Create NGL Stage object
     let stage;
     let currentComponent = null;
-    let isRotating = false;
-    let rotationInterval = null;
     
-    // Wait for DOM to be fully loaded
-    document.addEventListener('DOMContentLoaded', function() {
-      debug("DOM fully loaded, initializing NGL viewer");
-      initNGL();
-    });
-    
-    // Initialize NGL
-    function initNGL() {
+    try {
+      debug("Initializing NGL Stage");
+      stage = new NGL.Stage("viewport", { backgroundColor: "white" });
+      debug("NGL Stage initialized successfully");
+      hideLoading();
+      
+      // Send ready message to React Native
       try {
-        debug("Checking if viewport element exists");
-        const viewportElement = document.getElementById("viewport");
-        if (!viewportElement) {
-          showError("Viewport element not found in DOM");
-          return;
-        }
-        
-        debug("Initializing NGL Stage");
-        // Initialize NGL Stage with better defaults for mobile
-        stage = new NGL.Stage("viewport", { 
-          backgroundColor: "white",
-          quality: "medium", // Adjust based on device capability
-          impostor: true,    // Use impostors for better performance
-          antialias: true,   // Enable antialiasing for better visuals
-          fogNear: 100,      // Improve depth perception
-          fogFar: 100,
-          clipNear: 0,       // Prevent clipping issues
-          clipFar: 100,
-          clipDist: 10,
-          lightIntensity: 1.0, // Brighter lighting
-          ambientIntensity: 0.2, // Add ambient light
-          hoverTimeout: 0    // Disable hover for better mobile performance
-        });
-        
-        debug("NGL Stage initialized successfully");
-        
-        // Configure camera and controls for better interaction
-        stage.viewer.camera.position.z = 50;
-        stage.viewer.camera.lookAt(new NGL.Vector3(0, 0, 0));
-        
-        // Improve mouse/touch controls
-        stage.mouseControls.zoomSpeed = 1.0;
-        stage.mouseControls.rotateSpeed = 1.0;
-        stage.mouseControls.panSpeed = 1.0;
-        
-        // Enable all mouse actions for better interaction
-        stage.mouseControls.enableRotate = true;
-        stage.mouseControls.enableZoom = true;
-        stage.mouseControls.enablePan = true;
-        stage.mouseControls.enableDamping = true;
-        
-        hideLoading();
-        showResetViewButton();
-        
-        // Add reset view button handler
-        document.getElementById('reset-view').addEventListener('click', function() {
-          if (stage) {
-            stage.autoView(1000); // Smooth transition to default view
-          }
-        });
-        
-        // Add zoom in button handler
-        document.getElementById('zoom-in').addEventListener('click', function() {
-          if (stage) {
-            stage.viewer.controls.dollyIn(1.2);
-            stage.viewer.requestRender();
-          }
-        });
-        
-        // Add zoom out button handler
-        document.getElementById('zoom-out').addEventListener('click', function() {
-          if (stage) {
-            stage.viewer.controls.dollyOut(1.2);
-            stage.viewer.requestRender();
-          }
-        });
-        
-        // Add rotation button handler
-        document.getElementById('rotate').addEventListener('click', function() {
-          if (!stage) return;
-          
-          isRotating = !isRotating;
-          
-          if (isRotating) {
-            // Start rotation
-            this.style.backgroundColor = '#e0e0e0';
-            rotationInterval = setInterval(function() {
-              stage.viewer.controls.rotate(0.01, 0);
-              stage.viewer.requestRender();
-            }, 20);
-          } else {
-            // Stop rotation
-            this.style.backgroundColor = 'white';
-            clearInterval(rotationInterval);
-          }
-        });
-        
-        // Add fullscreen button handler
-        document.getElementById('fullscreen').addEventListener('click', function() {
-          if (stage) {
-            stage.toggleFullscreen();
-          }
-        });
-        
-        // Send ready message to React Native
-        try {
-          window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'viewerReady',
-            message: 'NGL Viewer is ready'
-          }));
-        } catch (e) {
-          debug('ReactNativeWebView not available: ' + e.message);
-        }
-        
-        // Handle window resize
-        window.addEventListener('resize', function() {
-          if (stage) {
-            debug("Window resized, handling resize");
-            stage.handleResize();
-            // Re-center view after resize
-            setTimeout(() => stage.autoView(0), 100);
-          }
-        });
-        
-        // Initial setup - load sample structure if no data is provided within 2 seconds
-        setTimeout(function() {
-          if (stage.compList.length === 0) {
-            debug('No structure loaded after timeout, loading sample structure');
-            loadSampleStructure();
-          }
-        }, 2000);
-        
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'viewerReady',
+          message: 'NGL Viewer is ready'
+        }));
       } catch (e) {
-        showError('Failed to initialize NGL Viewer: ' + e.message);
-        console.error("NGL initialization error:", e);
+        debug('ReactNativeWebView not available: ' + e.message);
       }
+      
+      // Handle window resize
+      window.addEventListener('resize', function() {
+        if (stage) {
+          debug("Window resized, handling resize");
+          stage.handleResize();
+        }
+      });
+      
+      // Initial setup - load sample structure if no data is provided within 2 seconds
+      setTimeout(function() {
+        if (stage.compList.length === 0) {
+          debug('No structure loaded after timeout, loading sample structure');
+          loadSampleStructure();
+        }
+      }, 2000);
+      
+    } catch (e) {
+      showError('Failed to initialize NGL Viewer: ' + e.message);
+      console.error("NGL initialization error:", e);
     }
     
-    // Helper function to apply representation and color scheme with improved settings
+    // Helper function to apply representation and color scheme
     function applyRepresentation(component, representation, colorScheme) {
       if (!component) {
         debug("Cannot apply representation: component is null");
@@ -438,82 +211,48 @@ const nglViewerHTML = `
           component.addRepresentation('cartoon', {
             color: 'sstruc',
             aspectRatio: 3.0,
-            scale: 1.5,
-            quality: 'medium'
+            scale: 1.5
           });
           return;
         default:
           colorSchemeParams = { color: 'chainid' };
       }
       
-      // Apply representation with improved settings
+      // Apply representation
       switch (representation) {
         case 'cartoon':
           component.addRepresentation('cartoon', {
             ...colorSchemeParams,
             aspectRatio: 3.0,
-            scale: 1.5,
-            quality: 'medium',
-            smoothSheet: true
+            scale: 1.5
           });
           break;
         case 'ball-and-stick':
           component.addRepresentation('ball+stick', {
             ...colorSchemeParams,
             multipleBond: true,
-            scale: 0.75,
-            bondScale: 0.4,
-            bondSpacing: 1.0,
-            quality: 'medium'
+            scale: 0.75
           });
           break;
         case 'space-filling':
           component.addRepresentation('spacefill', {
             ...colorSchemeParams,
-            scale: 0.8,
-            quality: 'medium'
+            scale: 0.8
           });
           break;
         case 'ribbon':
           component.addRepresentation('ribbon', {
             ...colorSchemeParams,
             scale: 1.0,
-            opacity: 0.9,
-            quality: 'medium'
+            opacity: 0.9
           });
           break;
         default:
-          // Fallback to licorice representation if others fail
-          try {
-            component.addRepresentation('cartoon', {
-              ...colorSchemeParams,
-              quality: 'low'
-            });
-          } catch (e) {
-            debug('Falling back to licorice representation');
-            component.addRepresentation('licorice', {
-              ...colorSchemeParams,
-              quality: 'low'
-            });
-          }
-      }
-      
-      // Add labels for binding sites if they exist
-      if (representation !== 'space-filling') {
-        try {
-          component.addRepresentation('ball+stick', {
-            sele: 'ligand',
-            scale: 0.6,
-            color: 'element',
-            quality: 'medium'
-          });
-        } catch (e) {
-          debug('No ligands found or error adding ligand representation');
-        }
+          component.addRepresentation('cartoon', colorSchemeParams);
       }
       
       // Ensure proper view
-      stage.autoView(1000);
+      stage.autoView();
     }
     
     // Load a sample structure for testing
@@ -535,7 +274,6 @@ const nglViewerHTML = `
             debug("Successfully loaded 1MBN");
             currentComponent = component;
             applyRepresentation(component, 'cartoon', 'structure');
-            stage.autoView(1000);
             
             // Send success message
             window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -548,24 +286,23 @@ const nglViewerHTML = `
             
             // Try loading a simple PDB structure
             stage.loadFile(new Blob([
-              "HEADER    SAMPLE STRUCTURE" +
-              "ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  " +
-              "ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  " +
-              "ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  " +
-              "ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  " +
-              "ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  " +
-              "ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  " +
-              "ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  " +
-              "ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  " +
-              "ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  " +
-              "ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  " +
+              "HEADER    SAMPLE STRUCTURE\\n" +
+              "ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  \\n" +
+              "ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  \\n" +
+              "ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  \\n" +
+              "ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  \\n" +
+              "ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  \\n" +
+              "ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  \\n" +
+              "ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  \\n" +
+              "ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  \\n" +
+              "ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  \\n" +
+              "ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  \\n" +
               "END"
             ], {type: 'text/plain'}), { ext: 'pdb', defaultRepresentation: false })
               .then(function(component) {
                 debug("Successfully loaded fallback structure");
                 currentComponent = component;
                 applyRepresentation(component, 'cartoon', 'structure');
-                stage.autoView(1000);
                 
                 // Send success message
                 window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -575,19 +312,6 @@ const nglViewerHTML = `
               })
               .catch(function(error) {
                 showError('Failed to load sample structure: ' + error.message);
-                
-                // Try an even simpler fallback
-                try {
-                  debug("Attempting final fallback to 1crn");
-                  stage.loadFile("rcsb://1crn").then(function(o) {
-                    currentComponent = o;
-                    o.addRepresentation("licorice");
-                    stage.autoView(1000);
-                    debug('Fallback structure loaded');
-                  });
-                } catch (e) {
-                  showError('All structure loading attempts failed');
-                }
               });
           });
       } catch (e) {
@@ -595,7 +319,7 @@ const nglViewerHTML = `
       }
     }
     
-    // Handle messages from React Native with improved error handling
+    // Handle messages from React Native
     window.addEventListener('message', function(event) {
       try {
         const data = JSON.parse(event.data);
@@ -613,7 +337,6 @@ const nglViewerHTML = `
           
           // Show loading indicator
           document.getElementById('loading').style.display = 'block';
-          document.getElementById('controls').style.display = 'none';
           
           // Load PDB data
           const format = data.format || 'pdb';
@@ -621,7 +344,7 @@ const nglViewerHTML = `
           
           debug('Loading structure: format=' + format + ', ext=' + ext + ', content length=' + data.content.length);
           
-          // Create a proper blob with the correct MIME type
+          // Create a blob with the content
           const blob = new Blob([data.content], {
             type: format === 'pdb' ? 'chemical/x-pdb' : 
                  (format === 'cif' ? 'chemical/x-cif' : 'chemical/x-mol')
@@ -629,18 +352,11 @@ const nglViewerHTML = `
           
           debug("Created blob, now loading file");
           
-          // Load with better error handling and timeout
-          const loadPromise = stage.loadFile(blob, { 
+          // Load the file
+          stage.loadFile(blob, { 
             ext: ext,
             defaultRepresentation: false
-          });
-          
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Loading timed out after 15 seconds')), 15000);
-          });
-          
-          Promise.race([loadPromise, timeoutPromise])
+          })
             .then(function(component) {
               // Hide loading indicator
               hideLoading();
@@ -649,9 +365,6 @@ const nglViewerHTML = `
               
               // Apply representation based on settings
               applyRepresentation(component, data.representation || 'cartoon', data.colorScheme || 'structure');
-              
-              // Auto zoom to fit the structure with animation
-              stage.autoView(1000);
               
               // Send success message back to React Native
               window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -675,7 +388,6 @@ const nglViewerHTML = `
                 }).then(function(component) {
                   debug("Alternative loading method succeeded");
                   applyRepresentation(component, 'ball-and-stick', 'element'); // Fallback to simpler representation
-                  stage.autoView(1000);
                   
                   // Send success message
                   window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -684,13 +396,11 @@ const nglViewerHTML = `
                   }));
                 }).catch(function(error) {
                   debug("Alternative loading method failed: " + error.message);
-                  // If all else fails, load sample structure
-                  debug('All loading attempts failed, loading sample structure');
-                  loadSampleStructure();
+                  showError('Failed to load structure: ' + error.message);
                 });
               } catch (e) {
                 debug("Error in alternative loading method: " + e.message);
-                loadSampleStructure();
+                showError('Failed to load structure: ' + e.message);
               }
             });
         } else if (data.type === 'updateRepresentation') {
@@ -708,93 +418,19 @@ const nglViewerHTML = `
             debug('Updated background color: ' + data.color);
           }
         } else if (data.type === 'resetView') {
-          // Reset view to default with animation
+          // Reset view to default
           if (stage) {
-            stage.autoView(1000);
+            stage.autoView();
             debug('Reset view');
-          }
-        } else if (data.type === 'zoomIn') {
-          // Zoom in with better control
-          if (stage) {
-            stage.viewer.controls.dollyIn(1.2);
-            stage.viewer.requestRender();
-            debug('Zoom in');
-          }
-        } else if (data.type === 'zoomOut') {
-          // Zoom out with better control
-          if (stage) {
-            stage.viewer.controls.dollyOut(1.2);
-            stage.viewer.requestRender();
-            debug('Zoom out');
-          }
-        } else if (data.type === 'move') {
-          // Toggle mouse mode
-          if (stage) {
-            stage.mouseControls.togglePreset();
-            debug('Toggle mouse mode');
-          }
-        } else if (data.type === 'fullscreen') {
-          // Toggle fullscreen
-          if (stage) {
-            stage.toggleFullscreen();
-            debug('Toggle fullscreen');
           }
         } else if (data.type === 'loadSample') {
           // Load sample structure
           loadSampleStructure();
-        } else if (data.type === 'toggleRotation') {
-          // Toggle rotation
-          const rotateBtn = document.getElementById('rotate');
-          if (rotateBtn) {
-            rotateBtn.click();
-          }
         }
       } catch (error) {
         showError('Error processing message: ' + error.message);
       }
     });
-    
-    // Prevent context menu to improve mobile experience
-    document.addEventListener('contextmenu', function(e) {
-      e.preventDefault();
-    });
-    
-    // Prevent default touch behavior to improve mobile experience
-    document.addEventListener('touchmove', function(e) {
-      if (e.target.id === 'viewport') {
-        e.preventDefault();
-      }
-    }, { passive: false });
-    
-    // Ensure WebGL context is not lost
-    window.addEventListener('webglcontextlost', function(e) {
-      debug('WebGL context lost, attempting to restore');
-      e.preventDefault();
-      
-      // Notify React Native
-      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'webglContextLost',
-        message: 'WebGL context was lost, attempting to restore'
-      }));
-      
-      // Try to restore after a short delay
-      setTimeout(function() {
-        if (stage) {
-          try {
-            stage.viewer.requestRender();
-            debug('WebGL context restored');
-          } catch (e) {
-            showError('Failed to restore WebGL context: ' + e.message);
-          }
-        }
-      }, 1000);
-    }, false);
-    
-    // Initialize NGL if not already done
-    if (document.readyState === "complete" || document.readyState === "interactive") {
-      debug("Document already loaded, initializing NGL immediately");
-      initNGL();
-    }
   </script>
 </body>
 </html>
@@ -822,7 +458,7 @@ export default function ProteinViewer() {
     return () => subscription.remove();
   }, []);
 
-  // Handle messages from the WebView with improved error handling
+  // Handle messages from the WebView
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -843,14 +479,6 @@ export default function ProteinViewer() {
         case 'debug':
           console.log('Debug:', data.message);
           setDebugInfo(data.message);
-          break;
-        case 'webglContextLost':
-          console.error('WebGL context lost:', data.message);
-          setViewerError('WebGL context was lost. Please reload the viewer.');
-          // Try to reload the WebView
-          if (webViewRef.current) {
-            webViewRef.current.reload();
-          }
           break;
         default:
           console.log('Unhandled message type:', data.type);
@@ -896,7 +524,7 @@ export default function ProteinViewer() {
     }));
   }, [viewerSettings, viewerReady]);
 
-  // Load protein structure with improved error handling
+  // Load protein structure
   const loadProteinStructure = () => {
     if (!currentProtein || !viewerReady || !webViewRef.current) {
       console.error('Cannot load protein structure: missing dependencies');
@@ -935,19 +563,6 @@ export default function ProteinViewer() {
     
     webViewRef.current.postMessage(JSON.stringify({
       type: 'resetView'
-    }));
-  };
-
-  // Toggle rotation
-  const toggleRotation = () => {
-    if (!viewerReady || !webViewRef.current) return;
-    
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    
-    webViewRef.current.postMessage(JSON.stringify({
-      type: 'toggleRotation'
     }));
   };
 
@@ -1011,7 +626,7 @@ export default function ProteinViewer() {
             title="Protein Viewer"
           />
         ) : (
-          // For native, use WebView with improved configuration
+          // For native, use WebView
           <WebView
             ref={webViewRef}
             originWhitelist={['*']}
