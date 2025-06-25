@@ -42,8 +42,7 @@ END
 `;
 
 // Improved NGL Viewer HTML template for WebView with better initialization and error handling
-const nglViewerHTML = `
-<!DOCTYPE html>
+const nglViewerHTML = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -96,8 +95,7 @@ const nglViewerHTML = `
       loadStructure("HEADER\\SAMPLE\\END", "pdb");
     </script>
   </body>
-</html>
-`.trim();
+</html>`.trim();
 
 export default function ProteinViewer() {
   const { currentProtein, annotations, viewerSettings } = useProteinStore();
