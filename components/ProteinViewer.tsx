@@ -92,10 +92,10 @@ const nglViewerHTML = `<!DOCTYPE html>
       });
 
       // Fallback display (escaped line breaks)
-      loadStructure("HEADER\\SAMPLE\\END", "pdb");
+      loadStructure("HEADER SAMPLE END", "pdb");
     </script>
   </body>
-</html>`.trim();
+</html>`;
 
 export default function ProteinViewer() {
   const { currentProtein, annotations, viewerSettings } = useProteinStore();
