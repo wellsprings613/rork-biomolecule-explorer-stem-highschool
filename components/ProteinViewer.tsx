@@ -286,17 +286,17 @@ const nglViewerHTML = `
             
             // Try loading a simple PDB structure
             stage.loadFile(new Blob([
-              "HEADER    SAMPLE STRUCTURE\\n" +
-              "ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  \\n" +
-              "ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  \\n" +
-              "ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  \\n" +
-              "ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  \\n" +
-              "ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  \\n" +
-              "ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  \\n" +
-              "ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  \\n" +
-              "ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  \\n" +
-              "ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  \\n" +
-              "ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  \\n" +
+              "HEADER    SAMPLE STRUCTURE\n" +
+              "ATOM      1  N   ALA A   1      21.709  34.298  37.631  1.00 18.04           N  \n" +
+              "ATOM      2  CA  ALA A   1      22.403  33.801  36.438  1.00 16.23           C  \n" +
+              "ATOM      3  C   ALA A   1      23.895  33.722  36.679  1.00 14.30           C  \n" +
+              "ATOM      4  O   ALA A   1      24.334  33.311  37.754  1.00 14.99           O  \n" +
+              "ATOM      5  CB  ALA A   1      21.843  32.446  36.036  1.00 16.55           C  \n" +
+              "ATOM      6  N   VAL A   2      24.698  34.116  35.693  1.00 12.71           N  \n" +
+              "ATOM      7  CA  VAL A   2      26.151  34.089  35.784  1.00 11.42           C  \n" +
+              "ATOM      8  C   VAL A   2      26.733  32.810  35.183  1.00 10.86           C  \n" +
+              "ATOM      9  O   VAL A   2      26.313  32.350  34.121  1.00 11.46           O  \n" +
+              "ATOM     10  CB  VAL A   2      26.792  35.289  35.062  1.00 11.47           C  \n" +
               "END"
             ], {type: 'text/plain'}), { ext: 'pdb', defaultRepresentation: false })
               .then(function(component) {
@@ -426,6 +426,38 @@ const nglViewerHTML = `
         } else if (data.type === 'loadSample') {
           // Load sample structure
           loadSampleStructure();
+        } else if (data.type === 'zoomIn') {
+          if (stage && stage.viewer) {
+            stage.viewer.zoom(1.2);
+            debug('Zoomed in');
+          }
+        } else if (data.type === 'zoomOut') {
+          if (stage && stage.viewer) {
+            stage.viewer.zoom(0.8);
+            debug('Zoomed out');
+          }
+        } else if (data.type === 'toggleRotation') {
+          if (stage) {
+            const currentSpin = stage.getParameters().spin;
+            stage.setParameters({ spin: !currentSpin });
+            debug(currentSpin ? 'Stopped rotation' : 'Started rotation');
+          }
+        } else if (data.type === 'fullscreen') {
+          if (document.documentElement) {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen().catch(err => {
+                debug('Failed to enter fullscreen: ' + err.message);
+              });
+              debug('Entered fullscreen');
+            } else {
+              if (document.exitFullscreen) {
+                document.exitFullscreen().catch(err => {
+                  debug('Failed to exit fullscreen: ' + err.message);
+                });
+                debug('Exited fullscreen');
+              }
+            }
+          }
         }
       } catch (error) {
         showError('Error processing message: ' + error.message);
